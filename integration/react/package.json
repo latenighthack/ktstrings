@@ -13,7 +13,7 @@
     "@types/react": "19.1.0",
     "@types/react-dom": "19.1.0",
     "typescript": "5.8.3",
-    "vite": "6.4.3",
+    "esbuild": "0.25.12",
     "jsdom": "26.1.0"
   }
 }

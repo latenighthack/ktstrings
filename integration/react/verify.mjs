@@ -1,4 +1,4 @@
-import { mkdtemp, cp, writeFile, readFile, rm, readdir } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -36,6 +36,6 @@ literal(''); useKtstrings; resolveText; heading;
   run('node',['runtime.mjs']);
   await writeFile(join(temporary,'index.html'),'<div id="root"></div><script type="module" src="/entry.js"></script>');
   await writeFile(join(temporary,'entry.js'),`import React from 'react'; import {createRoot} from 'react-dom/client'; import {I18nextProvider} from 'react-i18next'; import {createInstance} from 'i18next'; import {registerKtstrings,messages} from '${packageName}'; import {useKtstrings} from '${packageName}/react'; const i18n=createInstance(); registerKtstrings(i18n); await i18n.init({lng:'en',initImmediate:false}); function App(){ const {text}=useKtstrings(); return React.createElement('p',null,text(messages.welcome({name:'Ada'}))); } createRoot(document.getElementById('root')).render(React.createElement(I18nextProvider,{i18n},React.createElement(App)));`);
-  run(join(temporary,'node_modules/.bin/vite'),['build']);
+  run(join(temporary,'node_modules/.bin/esbuild'),['entry.js','--bundle','--minify','--format=esm','--target=es2022','--outdir=dist']);
   console.log('Installed npm tarball, typing, native i18next semantics, SSR/hydration, language switching and production bundle passed.');
 } finally { if (!process.env.KTSTRINGS_KEEP_FIXTURE) await rm(temporary,{recursive:true,force:true}); else console.log(temporary); }

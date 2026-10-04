@@ -26,4 +26,4 @@ Verify a generated package using the committed acceptance catalog:
 node integration/react/verify.mjs /absolute/path/to/generated/react
 ```
 
-The script packs the npm tarball, installs it into an isolated temporary consumer, compiles positive and negative TypeScript cases, verifies native i18next fallback and literal handling, runs SSR/hydration and language changes, and builds a production Vite bundle. The acceptance package must be generated from `integration/react/localization`.
+The script packs the npm tarball, installs it into an isolated temporary consumer, compiles positive and negative TypeScript cases, verifies native i18next fallback and literal handling, runs SSR/hydration and language changes, and builds a production esbuild bundle. The acceptance package must be generated from `integration/react/localization`.
