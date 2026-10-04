@@ -24,6 +24,8 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
       - run: ./gradlew lint --max-workers=2
 
@@ -44,6 +46,8 @@ jobs:
         with:
           node-version: '22'
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
       - run: brew install xcodegen gnupg
       - run: xcodebuild -version
@@ -91,6 +95,8 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
