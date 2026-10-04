@@ -45,5 +45,5 @@ print(run(adb, '-s', serial, 'install', '-r', apk))
 print(run(adb, '-s', serial, 'install', '-r', fixture/'app/build/outputs/apk/androidTest/release/app-release-androidTest.apk'))
 result = run(adb, '-s', serial, 'shell', 'am', 'instrument', '-w', 'fixture.ktstrings.test/androidx.test.runner.AndroidJUnitRunner')
 print(result)
-assert 'OK (' in result and 'FAILURES' not in result, 'Installed native/Compose tests failed'
-print('Installed native localization and Compose locale-change acceptance passed.')
+assert 'OK (' in result and 'FAILURES' not in result, 'Installed native/Views/Compose tests failed'
+print('Installed native localization, Android Views, and Compose locale-change acceptance passed.')

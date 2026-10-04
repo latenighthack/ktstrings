@@ -1,5 +1,7 @@
 # Android integration
 
+For Android Views and Compose binding examples and locale-update behavior, see [Android Views and Compose](android-views.md).
+
 Apply the consumer Kotlin/Android plugins and `com.latenighthack.ktstrings`, then set `ktstrings.kotlinPackage`. Catalogs default to `localization/`. The plugin registers generated resources through Android variant APIs and connects generation to compilation automatically.
 
 Android resource-only projects can apply the Android and ktstrings plugins without Kotlin tooling or `kotlinPackage`; the native XML still enters the AAR. Kotlin contracts, runtime dependencies, and typed wrappers are integrated only when the consumer applies Kotlin.
@@ -10,4 +12,4 @@ The plugin emits concrete resource references so Android resource shrinking can 
 
 For Compose, set `ktstrings.android { compose.set(true) }` and apply the normal Kotlin Compose compiler plugin yourself. The plugin adds the optional Compose library and generated `UiText.resolveText(requestedLocale?)` presentation helper. It subscribes to `LocalConfiguration` and supports app-language overrides without replacing message references.
 
-Run `python3 scripts/verify-android.py` with an Android SDK and a running emulator (or `ANDROID_SERIAL`). It builds the library AAR, optimized/shrunk release APK and AAB, inspects native resource packaging, installs the actual release packages, and exercises native resolution plus Compose language changes. The tested baseline is JDK 17, Kotlin 2.3.10, Gradle 9.5.1, AGP 8.13.2, compile SDK 35, and min SDK 23.
+Run `python3 scripts/verify-android.py` with an Android SDK and a running emulator (or `ANDROID_SERIAL`). It builds the library AAR, optimized/shrunk release APK and AAB, inspects native resource packaging, installs the actual release packages, and exercises native resolution plus Android Views and Compose language changes. The tested baseline is JDK 17, Kotlin 2.3.10, Gradle 9.5.1, AGP 8.13.2, compile SDK 35, and min SDK 23.

@@ -7,3 +7,4 @@
 -keep class kotlinx.coroutines.** { *; }
 -keep class androidx.** { *; }
 -keep class fixture.app.ComposeActivity { public *; }
+-keep class fixture.app.ViewsActivity { public *; }
