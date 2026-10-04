@@ -11,6 +11,6 @@ The implementation follows ktstrings-handoff.md. Central uploads are paused pend
 | React | Installed npm tarball declaration/type-negative/runtime/SSR/hydration/language-switching and production bundle gates passed. Actual locale assets and eager modules are in the package. |
 | Published consumers | Isolated plugin-marker/compiler/runtime resolution and enabled platform builds pass at baseline and changed candidate versions. No composite substitution or Maven Local is used. |
 | Basekit | Optional recognition/conversion and real KSP/JVM/JS/TypeScript/browser plus packaged static Apple simulator/release archive dogfood pass in the isolated `../basekit-ktstrings-adoption` worktree, branch `feat/ktstrings-adoption`, commit `b0f345f`. The original basekit checkout remains untouched. |
-| Central release | Metadata/candidate preparation is implemented. Signed release preparation, authorized Central upload, and clean resolution from Central remain outstanding while publication is paused. |
+| Central release | Metadata/checksums and signed local candidates for all 14 publications are verified with a disposable test key. Production namespace credentials/signing material, authorized Central upload, and clean resolution from Central remain paused and outstanding. |
 
 Reproduce local gates with the commands documented in docs/release.md. Instrumented Android release fixtures retain externally invoked test APIs while still running R8 and native resource shrinking; these retention rules belong to the acceptance fixture, not consumer catalogs.
