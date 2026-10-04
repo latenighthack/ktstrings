@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 internal fun configureAndroid(project: Project, extension: KtstringsExtension, generation: TaskProvider<GenerateKtstringsTask>) {
     generation.configure { it.androidEnabled.set(true) }
+    project.tasks.withType(VerifyKtstringsPackaging::class.java).configureEach { it.androidCatalogMetadata.set(generation.flatMap { task -> task.outputDirectory.file("metadata/catalog.json") }) }
     fun variant(variant: Variant) {
         val resources = project.tasks.register("stageKtstrings${variant.name.replaceFirstChar(Char::uppercaseChar)}Resources", StageAndroidResources::class.java) {
             it.sourceDirectory.set(generation.flatMap { task -> task.outputDirectory.dir("android/resources") })
@@ -75,27 +76,39 @@ abstract class StageAndroidResources : DefaultTask() {
     }
 }
 
-internal fun verifyAndroidArtifact(artifact: java.io.File) {
+internal fun verifyAndroidArtifact(artifact: java.io.File, metadata: java.io.File) {
+    val catalog = groovy.json.JsonSlurper().parse(metadata) as? Map<*, *> ?: throw org.gradle.api.GradleException("Invalid generated ktstrings metadata")
+    val namespace = catalog["namespace"] as? String ?: throw org.gradle.api.GradleException("Missing generated catalog namespace")
+    val availability = catalog["availability"] as? Map<*, *> ?: throw org.gradle.api.GradleException("Missing generated catalog availability")
+    val expected = availability.keys.map { id -> "ktstrings_${namespace}_${(id as String).replace('.', '_').lowercase()}" }
     if (artifact.isDirectory) {
         val apks = artifact.walkTopDown().filter { it.isFile && it.extension == "apk" }.toList()
         if (apks.isEmpty()) throw org.gradle.api.GradleException("Android distribution contains no APK: $artifact")
-        apks.forEach(::verifyAndroidArtifact)
+        apks.forEach { verifyAndroidArtifact(it, metadata) }
         return
     }
     java.util.zip.ZipFile(artifact).use { archive ->
         val entries = archive.entries().asSequence().map { it.name }.toList()
         when (artifact.extension) {
             "aar" -> {
-                val resources = entries.filter { it.startsWith("res/values") && it.endsWith(".xml") }
-                if (resources.none { name -> archive.getInputStream(archive.getEntry(name)).bufferedReader().use { it.readText() }.contains("ktstrings_") })
-                    throw org.gradle.api.GradleException("AAR has no generated native ktstrings resource definitions: $artifact")
+                if ("AndroidManifest.xml" !in entries) throw org.gradle.api.GradleException("Invalid Android library archive: $artifact")
+                val sourceResources = entries.filter { it.startsWith("res/values/") && it.endsWith(".xml") }
+                val xml = sourceResources.joinToString("\n") { name -> archive.getInputStream(archive.getEntry(name)).bufferedReader().use { it.readText() } }
+                val declared = Regex("<(?:string|plurals)\\b[^>]*\\bname\\s*=\\s*[\"']([^\"']+)[\"']").findAll(xml).map { it.groupValues[1] }.toSet()
+                val missing = expected - declared
+                if (missing.isNotEmpty()) throw org.gradle.api.GradleException("AAR is missing source catalog native definitions $missing: $artifact")
             }
             "apk", "aab" -> {
-                val table = if (artifact.extension == "apk") "resources.arsc" else "base/resources.pb"
-                if (table !in entries) throw org.gradle.api.GradleException("Android distribution has no compiled native resource table: $artifact")
-                val data = archive.getInputStream(archive.getEntry(table)).use { it.readBytes() }
-                if (!data.toString(Charsets.ISO_8859_1).contains("ktstrings_") && !data.toString(Charsets.UTF_16LE).contains("ktstrings_"))
-                    throw org.gradle.api.GradleException("Android distribution has no compiled ktstrings resource entries: $artifact")
+                val manifest = if (artifact.extension == "apk") "AndroidManifest.xml" else "base/manifest/AndroidManifest.xml"
+                if (manifest !in entries) throw org.gradle.api.GradleException("Invalid Android application archive: $artifact")
+                if (expected.isNotEmpty()) {
+                    val table = if (artifact.extension == "apk") "resources.arsc" else "base/resources.pb"
+                    if (table !in entries) throw org.gradle.api.GradleException("Android distribution has no compiled native resource table: $artifact")
+                    val data = archive.getInputStream(archive.getEntry(table)).use { it.readBytes() }
+                    val encoded = listOf(data.toString(Charsets.ISO_8859_1), data.toString(Charsets.UTF_16LE))
+                    val missing = expected.filter { name -> encoded.none { Regex("${Regex.escape(name)}(?![a-z0-9_])").containsMatchIn(it) } }
+                    if (missing.isNotEmpty()) throw org.gradle.api.GradleException("Android distribution is missing compiled catalog entries $missing: $artifact")
+                }
             }
             else -> throw org.gradle.api.GradleException("Unsupported Android distribution artifact: $artifact")
         }
