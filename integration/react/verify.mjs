@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, rm, mkdir, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -16,7 +16,14 @@ try {
   const packageName = JSON.parse(await readFile(join(resolve(generated),'package.json'),'utf8')).name;
   await writeFile(join(temporary,'package.json'),JSON.stringify({...manifest,scripts:{},dependencies:{...manifest.dependencies,[packageName]:`file:./${pack.filename}`}}));
   run('npm',['install','--ignore-scripts','--no-audit','--no-fund']);
-  const metadata = JSON.parse(await readFile(join(resolve(generated),'metadata/catalog.json'),'utf8'));
+  const rootless=join(temporary,'rootless');
+  await mkdir(rootless);
+  await writeFile(join(rootless,'package.json'),JSON.stringify({private:true,type:'module',dependencies:{i18next:'25.6.3',[packageName]:`file:../${pack.filename}`}}));
+  run('npm',['install','--ignore-scripts','--omit=optional','--no-audit','--no-fund'],rootless);
+  let hasReact=false;try { await access(join(rootless,'node_modules/react')); hasReact=true; } catch {}
+  if(hasReact) throw new Error('Root import fixture unexpectedly installed React');
+  run('node',['--input-type=module','-e',`import {literal} from ${JSON.stringify(packageName)}; if(literal('root').text !== 'root') throw Error('Root import failed');`],rootless);
+
   await writeFile(join(temporary,'contracts.ts'),`
 import {messages, literal, resolveText, type UiText} from ${JSON.stringify(packageName)};
 import {useKtstrings} from ${JSON.stringify(packageName+'/react')};

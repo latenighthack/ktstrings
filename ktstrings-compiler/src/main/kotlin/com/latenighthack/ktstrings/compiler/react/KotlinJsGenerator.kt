@@ -26,7 +26,7 @@ fun encodeKtstringsText(value: UiText): dynamic {
     when (value) {
         is LiteralText -> { result.kind = "literal"; result.text = value.text }
         is LocalMessage -> {
-            require(value.namespace == ${quote(catalog.source.namespace)}) { "Unknown ktstrings namespace" }
+            require(value is CatalogMessage && value.namespace == ${quote(catalog.source.namespace)}) { "Unknown ktstrings namespace" }
             result.kind = "message"
             result.namespace = value.namespace
             result.id = value.id

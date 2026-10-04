@@ -13,6 +13,7 @@ await i18n.init({lng:'en',fallbackLng:'ar',initImmediate:false,interpolation:{es
 const heading=messages.welcome({name:'Ada'});
 assert.equal(resolveText(i18n,heading),'Welcome, Ada');
 assert.equal(resolveText(i18n,heading,'fr-CA'),'Bienvenue, Ada');
+assert.equal(resolveText(i18n,heading,' fr '),'Bienvenue, Ada');
 assert.equal(resolveText(i18n,messages.itemsCount({count:2}),'ar'),'2 items'); // Arabic message absent: English grammar
 assert.equal(resolveText(i18n,literal('')),'');
 const generic=literal('Generic');
@@ -30,6 +31,7 @@ assert.equal(resolveText(i18n,messages.welcome({name:tricky})),'Welcome, '+trick
 if(messages.literalSyntax) assert.equal(resolveText(i18n,messages.literalSyntax()),'{{value}} $t(welcome) % " \\ $');
 for(const count of [-1,0.5,2147483648,NaN,Infinity]) assert.throws(()=>messages.itemsCount({count}));
 assert.equal(resolveText(i18n,messages.itemsCount({count:2147483647})),'2147483647 items');
+if (messages.signedValue) { assert.equal(resolveText(i18n,messages.signedValue({amount:-2147483648})),'-2147483648'); assert.equal(resolveText(i18n,messages.signedValue({amount:2147483647})),'2147483647'); assert.throws(()=>messages.signedValue({amount:-2147483649})); }
 let networkRequests=0;
 const previousFetch=globalThis.fetch;
 globalThis.fetch=()=>{networkRequests++;throw new Error('Unexpected translation download');};

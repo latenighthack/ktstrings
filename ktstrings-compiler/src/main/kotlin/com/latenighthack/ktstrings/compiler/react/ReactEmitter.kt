@@ -95,7 +95,7 @@ export function registerKtstrings(instance) {
 function selectLocale(id, requested) {
   const available = metadata.availability[id];
   let locale;
-  try { locale = Intl.getCanonicalLocales(requested.replaceAll('_','-'))[0]; } catch { locale = metadata.sourceLocale; }
+  try { locale = Intl.getCanonicalLocales(requested.trim().replaceAll('_','-'))[0]; } catch { locale = metadata.sourceLocale; }
   while (locale) {
     const match = available.find(value => value.toLowerCase() === locale.toLowerCase());
     if (match) return match;
@@ -150,7 +150,7 @@ import type { i18n } from 'i18next';
 import type { UiText } from './index.js';
 export declare function useKtstrings(requestedLocale?: string): { text(value: UiText): string; i18n: i18n; ready: boolean };
 """.trimIndent())
-        write("package.json",json(mapOf("name" to packageName,"version" to options.reactPackageVersion,"type" to "module","files" to listOf("index.js","index.d.ts","react.js","react.d.ts","locales","metadata"),"exports" to mapOf("." to mapOf("types" to "./index.d.ts","import" to "./index.js"),"./react" to mapOf("types" to "./react.d.ts","import" to "./react.js"),"./locales/*" to "./locales/*.json","./metadata/catalog.json" to "./metadata/catalog.json"),"peerDependencies" to mapOf("i18next" to ">=25 <27","react" to ">=18 <20","react-i18next" to ">=15 <17"),"peerDependenciesMeta" to mapOf("react" to mapOf("optional" to true),"react-i18next" to mapOf("optional" to true)))))
+        write("package.json",json(mapOf("name" to packageName,"version" to options.reactPackageVersion,"type" to "module","files" to listOf("index.js","index.d.ts","react.js","react.d.ts","locales","metadata"),"exports" to mapOf("." to mapOf("types" to "./index.d.ts","import" to "./index.js"),"./react" to mapOf("types" to "./react.d.ts","import" to "./react.js"),"./locales/*" to "./locales/*.json","./locales/*.json" to "./locales/*.json","./locales/*.js" to "./locales/*.js","./metadata/catalog.json" to "./metadata/catalog.json"),"peerDependencies" to mapOf("i18next" to ">=25 <27","react" to ">=18 <20","react-i18next" to ">=15 <17"),"peerDependenciesMeta" to mapOf("react" to mapOf("optional" to true),"react-i18next" to mapOf("optional" to true)))))
     }
 }
 
