@@ -56,7 +56,9 @@ class CatalogParser {
                 translations[translatedLocale] = LocaleCatalog(translatedLocale, bodies)
             }
         }
-        return CompiledCatalog(Catalog(namespace, sourceLocale, messages), translations, LocaleData.getCLDRVersion().toString())
+        val compiled = CompiledCatalog(Catalog(namespace, sourceLocale, messages), translations, LocaleData.getCLDRVersion().toString())
+        reactResourceCollisions(compiled)
+        return compiled
     }
     private fun read(path: Path): JsonNode = try { mapper.readTree(path.toFile()) ?: fail("JSON", "Empty JSON in '$path'") } catch (e: CatalogException) { throw e } catch (e: Exception) { fail("JSON", "Cannot parse '$path': ${e.message}") }
     private fun version(node: JsonNode) { if (!node.path("schemaVersion").isIntegralNumber || !node.path("schemaVersion").canConvertToInt() || node.path("schemaVersion").intValue() != 1) fail("SCHEMA_VERSION", "Only schemaVersion 1 is supported") }
@@ -102,6 +104,19 @@ class CatalogParser {
             }
         }
         flush(); return result
+    }
+    private fun reactResourceCollisions(catalog: CompiledCatalog) {
+        val generated = mutableMapOf<String, String>()
+        for (locale in catalog.locales) for ((id, body) in catalog.bodies(locale)) {
+            val keys = when (body) {
+                is Body.Text -> listOf(id)
+                is Body.Plural -> body.cases.keys.map { "${id}_$it" }
+            }
+            for (key in keys) {
+                val previous = generated.put(key, id)
+                if (previous != null && previous != id) fail("NAME_COLLISION", "'$previous' and '$id' generate '$key' for i18next")
+            }
+        }
     }
     private fun collisions(namespace: String, ids: Set<String>) {
         val conversions = linkedMapOf<String, (String) -> String>(

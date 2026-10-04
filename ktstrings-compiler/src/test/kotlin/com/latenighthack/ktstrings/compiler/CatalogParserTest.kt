@@ -53,6 +53,14 @@ class CatalogParserTest {
         Files.writeString(directory.resolve("locales/fr.json"), """{"schemaVersion":1,"locale":"fr","messages":{"welcome":{"text":"{missing}"}}}""")
         fails("UNKNOWN_PLACEHOLDER", catalog())
     }
+    @Test fun pluralSuffixKeysCannotOverwriteStableTextIds() {
+        val plural = """"items.count":{"arguments":{"count":"int"},"body":{"plural":"count","cases":{"one":"{count}","other":"{count}"}}}"""
+        val failure = assertFailsWith<CatalogException> { parse(catalog(plural + ",\"items.count_one\":{\"body\":{\"text\":\"literal\"}}")) }
+        assertEquals("NAME_COLLISION", failure.code)
+        assertContains(failure.message!!, "items.count")
+        assertContains(failure.message!!, "items.count_one")
+        assertContains(failure.message!!, "i18next")
+    }
     @Test fun normalizedDuplicateLocalesAndBodyContracts() {
         Files.createDirectories(directory.resolve("locales"))
         Files.writeString(directory.resolve("locales/fr-FR.json"), """{"schemaVersion":1,"locale":"fr-FR","messages":{}}""")
