@@ -22,6 +22,8 @@ The release audit requires all native, JVM, JS, Android, compiler, Compose, plug
 
 The release and preparation workflows use the latenighthack organization secrets `SIGNING_KEY` and `SIGNING_PASSWORD`; the release workflow also uses `MAVEN_CENTRAL_USERNAME` and `MAVEN_CENTRAL_PASSWORD`. Organization secret access must include this repository. The public verification key is derived from the signing key in a temporary keyring. The signing key is an ASCII-armored in-memory PGP private key; it is never committed. Use a `v<version>` tag whose source `VERSION_NAME` agrees with the requested release. The workflow checks tag/version equality, runs the platform verification gates, and archives the complete signed file repository.
 
+Before using a new signing key, register its public key on a [Central-supported keyserver](https://central.sonatype.org/publish/requirements/gpg/#distributing-your-public-key). A locally valid signature still fails Central validation when the public key cannot be retrieved. The current release key fingerprint is `A754537D70A99D18EF30B580F98A9B137049605C`, registered on `keys.openpgp.org` and `keyserver.ubuntu.com`.
+
 For an explicit local release, supply a Central Portal token through `ORG_GRADLE_PROJECT_mavenCentralUsername` and `ORG_GRADLE_PROJECT_mavenCentralPassword`; the namespace must be authorized. The explicit upload operation is:
 
 ```sh
