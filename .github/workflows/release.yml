@@ -1,0 +1,103 @@
+name: Release to Maven Central
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: central-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require a matching release tag
+        id: version
+        run: |
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import re
+
+          ref = os.environ['GITHUB_REF']
+          properties = dict(line.split('=', 1) for line in pathlib.Path('gradle.properties').read_text().splitlines() if '=' in line)
+          version = properties['VERSION_NAME']
+          assert re.fullmatch(r'\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?', version) and 'SNAPSHOT' not in version, 'A release version is required'
+          assert ref == f'refs/tags/v{version}', f'Select or push tag v{version}; received {ref}'
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'version={version}\n')
+          PY
+      - name: Check organization secret access
+        env:
+          CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+        run: |
+          test -n "$CENTRAL_USERNAME" || { echo '::error::MAVEN_CENTRAL_USERNAME is unavailable to this repository'; exit 1; }
+          test -n "$CENTRAL_PASSWORD" || { echo '::error::MAVEN_CENTRAL_PASSWORD is unavailable to this repository'; exit 1; }
+          test -n "$SIGNING_KEY" || { echo '::error::SIGNING_KEY is unavailable to this repository'; exit 1; }
+
+  verify:
+    needs: version
+    uses: ./.github/workflows/verify.yml
+    with:
+      ref: ${{ github.ref }}
+
+  publish:
+    needs: [version, verify]
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+      RELEASE_VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - run: brew install gnupg
+      - run: xcodebuild -version
+      - name: Build and audit signed publications
+        env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          test -n "$ORG_GRADLE_PROJECT_signingInMemoryKey" || { echo '::error::SIGNING_KEY is unavailable to this repository'; exit 1; }
+          ./gradlew -PreleaseSigning=true publishAllPublicationsToCandidateRepository --no-configuration-cache --max-workers=2
+          SIGNING_HOME="$(mktemp -d)"
+          trap 'gpgconf --homedir "$SIGNING_HOME" --kill all || true; rm -rf "$SIGNING_HOME"' EXIT
+          printenv ORG_GRADLE_PROJECT_signingInMemoryKey | gpg --homedir "$SIGNING_HOME" --batch --import
+          gpg --homedir "$SIGNING_HOME" --batch --armor --export > build/release-public-key.asc
+          python3 scripts/verify-release-metadata.py --version "$RELEASE_VERSION" --check-tag --require-signatures --public-key build/release-public-key.asc
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-central-release-${{ needs.version.outputs.version }}
+          path: build/candidate-repository
+      - name: Publish and release all publications
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          test -n "$ORG_GRADLE_PROJECT_mavenCentralUsername" || { echo '::error::MAVEN_CENTRAL_USERNAME is unavailable to this repository'; exit 1; }
+          test -n "$ORG_GRADLE_PROJECT_mavenCentralPassword" || { echo '::error::MAVEN_CENTRAL_PASSWORD is unavailable to this repository'; exit 1; }
+          ./gradlew -PreleaseSigning=true publishAndReleaseToMavenCentral --no-configuration-cache --max-workers=2
+      - name: Verify artifacts are served by Maven Central
+        timeout-minutes: 25
+        run: python3 scripts/verify-central-release.py --version "$RELEASE_VERSION" --wait-seconds 1200

@@ -1,4 +1,9 @@
-plugins { kotlin("jvm"); application; id("com.vanniktech.maven.publish") }
+plugins {
+    kotlin("jvm")
+    application
+    id("com.vanniktech.maven.publish")
+}
+
 kotlin { jvmToolchain(17) }
 application { mainClass.set("com.latenighthack.ktstrings.compiler.MainKt") }
 dependencies {
@@ -9,4 +14,5 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.3.10")
     testImplementation("org.junit.jupiter:junit-jupiter:5.13.4")
 }
+
 tasks.test { useJUnitPlatform() }

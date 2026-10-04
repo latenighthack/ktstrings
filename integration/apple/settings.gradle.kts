@@ -1,8 +1,19 @@
 pluginManagement {
     includeBuild("../..")
-    repositories { mavenCentral(); google(); gradlePluginPortal() }
+    repositories {
+        mavenCentral()
+        google()
+        gradlePluginPortal()
+    }
 }
-dependencyResolutionManagement { repositories { mavenCentral(); google() } }
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+        google()
+    }
+}
+
 rootProject.name = "ktstrings-apple-consumer"
 // Explicit development substitutions; isolated publication acceptance uses a file Maven repository.
 includeBuild("../..") {

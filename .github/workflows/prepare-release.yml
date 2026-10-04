@@ -18,8 +18,9 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 45
     env:
-      ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.RELEASE_SIGNING_KEY }}
-      ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.RELEASE_SIGNING_PASSWORD }}
+      ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+      ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,10 +37,12 @@ jobs:
         run: ./gradlew -PreleaseSigning=true publishAllPublicationsToCandidateRepository --max-workers=2
       - name: Verify tag and signed release metadata
         env:
-          RELEASE_PUBLIC_KEY: ${{ secrets.RELEASE_PUBLIC_KEY }}
           RELEASE_VERSION: ${{ inputs.version }}
         run: |
-          printenv RELEASE_PUBLIC_KEY > build/release-public-key.asc
+          SIGNING_HOME="$(mktemp -d)"
+          trap 'gpgconf --homedir "$SIGNING_HOME" --kill all || true; rm -rf "$SIGNING_HOME"' EXIT
+          printenv ORG_GRADLE_PROJECT_signingInMemoryKey | gpg --homedir "$SIGNING_HOME" --batch --import
+          gpg --homedir "$SIGNING_HOME" --batch --armor --export > build/release-public-key.asc
           python3 scripts/verify-release-metadata.py --version "$RELEASE_VERSION" --check-tag --require-signatures --public-key build/release-public-key.asc
       - uses: actions/upload-artifact@v4
         with:

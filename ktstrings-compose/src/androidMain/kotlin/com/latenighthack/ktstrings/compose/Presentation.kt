@@ -11,8 +11,13 @@ import com.latenighthack.ktstrings.UiText
 @Composable
 fun currentKtstringsLocale(): String {
     val configuration = LocalConfiguration.current
+
     return if (Build.VERSION.SDK_INT >= 24) configuration.locales[0].toLanguageTag() else configuration.locale.toLanguageTag()
 }
+
 @Composable
-fun resolveKtstrings(text: UiText, resolver: (UiText, String) -> String, requestedLocale: String = currentKtstringsLocale()): String =
-    remember(text, resolver, requestedLocale) { resolver(text, requestedLocale) }
+fun resolveKtstrings(
+    text: UiText,
+    resolver: (UiText, String) -> String,
+    requestedLocale: String = currentKtstringsLocale(),
+): String = remember(text, resolver, requestedLocale) { resolver(text, requestedLocale) }

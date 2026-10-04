@@ -1,18 +1,28 @@
 package com.latenighthack.ktstrings.compiler.react
 
-import com.latenighthack.ktstrings.compiler.*
+import com.latenighthack.ktstrings.compiler.CatalogEmitter
+import com.latenighthack.ktstrings.compiler.CompiledCatalog
+import com.latenighthack.ktstrings.compiler.GenerationOptions
 import java.nio.file.Files
 import java.nio.file.Path
 
 /** Encodes shared state into the exact discriminated union exported by the React package. */
 class KotlinJsGenerator : CatalogEmitter {
     override val name = "kotlin-js"
-    override fun emit(catalog: CompiledCatalog, options: GenerationOptions, outputDirectory: Path) {
+
+    override fun emit(
+        catalog: CompiledCatalog,
+        options: GenerationOptions,
+        outputDirectory: Path,
+    ) {
         if (options.reactPackageName == null) return
+
         val pkg = options.kotlinPackage ?: return
         val directory = outputDirectory.resolve("js").resolve(pkg.replace('.', '/'))
         Files.createDirectories(directory)
-        Files.writeString(directory.resolve("KtstringsJs.kt"), """
+        Files.writeString(
+            directory.resolve("KtstringsJs.kt"),
+            """
 @file:Suppress("UnsafeCastFromDynamic")
 package $pkg
 
@@ -43,6 +53,7 @@ fun encodeKtstringsText(value: UiText): dynamic {
     }
     return result
 }
-""".trimIndent() + "\n")
+            """.trimIndent() + "\n",
+        )
     }
 }

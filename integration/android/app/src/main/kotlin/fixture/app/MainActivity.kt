@@ -1,8 +1,11 @@
 package fixture.app
+
 import android.app.Activity
 import android.os.Bundle
 import android.widget.TextView
-import fixture.localization.*
+import fixture.localization.AndroidTextResolver
+import fixture.localization.Messages
+
 class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

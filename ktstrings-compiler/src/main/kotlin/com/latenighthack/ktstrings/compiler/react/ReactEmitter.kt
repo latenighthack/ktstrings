@@ -1,54 +1,108 @@
 package com.latenighthack.ktstrings.compiler.react
 
-import com.latenighthack.ktstrings.compiler.*
+import com.latenighthack.ktstrings.compiler.ArgumentType
+import com.latenighthack.ktstrings.compiler.Body
+import com.latenighthack.ktstrings.compiler.CatalogEmitter
+import com.latenighthack.ktstrings.compiler.CompiledCatalog
+import com.latenighthack.ktstrings.compiler.GenerationOptions
+import com.latenighthack.ktstrings.compiler.Message
+import com.latenighthack.ktstrings.compiler.Names
+import com.latenighthack.ktstrings.compiler.Token
 import java.nio.file.Files
 import java.nio.file.Path
 
 class ReactEmitter : CatalogEmitter {
     override val name = "react"
-    override fun emit(catalog: CompiledCatalog, options: GenerationOptions, outputDirectory: Path) {
+
+    override fun emit(
+        catalog: CompiledCatalog,
+        options: GenerationOptions,
+        outputDirectory: Path,
+    ) {
         val packageName = options.reactPackageName ?: return
         val source = catalog.source
         val root = outputDirectory.resolve("react")
         Files.createDirectories(root.resolve("locales"))
         Files.createDirectories(root.resolve("metadata"))
-        fun write(path: String, value: String) { Files.writeString(root.resolve(path), value + "\n") }
+
+        fun write(
+            path: String,
+            value: String,
+        ) {
+            Files.writeString(root.resolve(path), value + "\n")
+        }
+
         val locales = linkedMapOf(source.sourceLocale to source.messages.mapValues { it.value.body })
         catalog.translations.forEach { (locale, translated) -> locales[locale] = translated.messages }
-        val literalTexts = locales.values.flatMap { it.values }.flatMap { body -> when(body) {
-            is Body.Text -> body.tokens
-            is Body.Plural -> body.cases.values.flatten()
-        }}.filterIsInstance<Token.Literal>().map { it.value }
+        val literalTexts =
+            locales.values
+                .flatMap { it.values }
+                .flatMap { body ->
+                    when (body) {
+                        is Body.Text -> body.tokens
+                        is Body.Plural -> body.cases.values.flatten()
+                    }
+                }.filterIsInstance<Token.Literal>()
+                .map { it.value }
         var delimiter = 0
+
         while (literalTexts.any { "__KT${delimiter}_BEGIN__" in it || "__KT${delimiter}_END__" in it }) delimiter++
         val prefix = "__KT${delimiter}_BEGIN__"
         val suffix = "__KT${delimiter}_END__"
-        fun render(tokens: List<Token>, message: Message) = tokens.joinToString("") { token -> when(token) {
-            is Token.Literal -> token.value
-            is Token.Placeholder -> prefix + "a" + message.arguments.indexOfFirst { it.name == token.name } + suffix
-        }}
-        val resources = linkedMapOf<String, Map<String,String>>()
+
+        fun render(
+            tokens: List<Token>,
+            message: Message,
+        ) = tokens.joinToString("") { token ->
+            when (token) {
+                is Token.Literal -> token.value
+                is Token.Placeholder -> prefix + "a" + message.arguments.indexOfFirst { it.name == token.name } + suffix
+            }
+        }
+
+        val resources = linkedMapOf<String, Map<String, String>>()
         locales.forEach { (locale, bodies) ->
-            val values = linkedMapOf<String,String>()
+            val values = linkedMapOf<String, String>()
             bodies.forEach { (id, body) ->
                 val message = source.messages.getValue(id)
-                when(body) {
-                    is Body.Text -> values[id] = render(body.tokens,message)
-                    is Body.Plural -> body.cases.forEach { (category,tokens) -> values["${id}_$category"] = render(tokens,message) }
+                when (body) {
+                    is Body.Text -> values[id] = render(body.tokens, message)
+                    is Body.Plural -> body.cases.forEach { (category, tokens) -> values["${id}_$category"] = render(tokens, message) }
                 }
             }
             resources[locale] = values
             write("locales/$locale.json", json(values))
             write("locales/$locale.js", "export default ${json(values)};")
         }
-        val contracts = source.messages.mapValues { (_,m) -> mapOf("arguments" to m.arguments.map { mapOf("name" to it.name,"type" to it.type.name.lowercase()) }, "selector" to (m.body as? Body.Plural)?.selector) }
+
+        val contracts =
+            source.messages.mapValues { (_, m) ->
+                mapOf(
+                    "arguments" to m.arguments.map { mapOf("name" to it.name, "type" to it.type.name.lowercase()) },
+                    "selector" to (m.body as? Body.Plural)?.selector,
+                )
+            }
         val availability = source.messages.keys.associateWith { id -> locales.filterValues { id in it }.keys.toList() }
-        val metadata = mapOf("namespace" to source.namespace,"sourceLocale" to source.sourceLocale,"cldrVersion" to catalog.cldrVersion,"availability" to availability,"contracts" to contracts,"prefix" to prefix,"suffix" to suffix)
-        write("metadata/catalog.json",json(metadata))
+        val metadata =
+            mapOf(
+                "namespace" to source.namespace,
+                "sourceLocale" to source.sourceLocale,
+                "cldrVersion" to catalog.cldrVersion,
+                "availability" to availability,
+                "contracts" to contracts,
+                "prefix" to prefix,
+                "suffix" to suffix,
+            )
+        write("metadata/catalog.json", json(metadata))
         val imports = resources.keys.mapIndexed { i, locale -> "import l$i from './locales/$locale.js';" }.joinToString("\n")
-        val resourceJs = resources.keys.mapIndexed { i,locale -> "${quote(locale)}: { [namespace]: l$i }" }.joinToString(",")
-        val constructors = source.messages.values.joinToString(",\n") { m -> "${quote(apiName(m.id))}: (args = {}) => construct(${quote(m.id)}, args)" }
-        write("index.js", """
+        val resourceJs = resources.keys.mapIndexed { i, locale -> "${quote(locale)}: { [namespace]: l$i }" }.joinToString(",")
+        val constructors =
+            source.messages.values.joinToString(
+                ",\n",
+            ) { m -> "${quote(apiName(m.id))}: (args = {}) => construct(${quote(m.id)}, args)" }
+        write(
+            "index.js",
+            """
 $imports
 const metadata = ${json(metadata)};
 export const namespace = metadata.namespace;
@@ -115,14 +169,36 @@ export function resolveText(instance, value, requestedLocale) {
   if (contract.selector) options.count = checked.arguments[contract.selector];
   return instance.t(value.id,options);
 }
-""".trimIndent())
-        val types = source.messages.values.joinToString("\n") { m ->
-            val args = m.arguments.joinToString("; ") { "readonly ${it.name}: ${if(it.type == ArgumentType.STRING) "string" else "number"}" }
-            "export type ${apiName(m.id).replaceFirstChar { it.uppercase() }}Message = { readonly kind: 'message'; readonly namespace: ${quote(source.namespace)}; readonly id: ${quote(m.id)}; readonly arguments: { $args } };"
-        }
-        val union = source.messages.values.joinToString(" | ") { apiName(it.id).replaceFirstChar { c -> c.uppercase() } + "Message" }.ifEmpty { "never" }
-        val factories = source.messages.values.joinToString("\n") { m -> val type = apiName(m.id).replaceFirstChar { it.uppercase() } + "Message"; "  ${apiName(m.id)}(${if(m.arguments.isEmpty()) "args?: Record<string, never>" else "args: $type['arguments']"}): $type;" }
-        write("index.d.ts", """
+            """.trimIndent(),
+        )
+        val types =
+            source.messages.values.joinToString("\n") { m ->
+                val args =
+                    m.arguments.joinToString(
+                        "; ",
+                    ) { "readonly ${it.name}: ${if (it.type == ArgumentType.STRING) "string" else "number"}" }
+                "export type ${apiName(
+                    m.id,
+                ).replaceFirstChar { it.uppercase() }}Message = { readonly kind: 'message'; readonly namespace: ${quote(
+                    source.namespace,
+                )}; readonly id: ${quote(m.id)}; readonly arguments: { $args } };"
+            }
+        val union =
+            source.messages.values
+                .joinToString(" | ") {
+                    apiName(it.id).replaceFirstChar { c ->
+                        c.uppercase()
+                    } + "Message"
+                }.ifEmpty { "never" }
+        val factories =
+            source.messages.values.joinToString("\n") { m ->
+                val type =
+                    apiName(m.id).replaceFirstChar { it.uppercase() } + "Message"
+                "  ${apiName(m.id)}(${if (m.arguments.isEmpty()) "args?: Record<string, never>" else "args: $type['arguments']"}): $type;"
+            }
+        write(
+            "index.d.ts",
+            """
 import type { i18n } from 'i18next';
 $types
 export type LocalMessage = $union;
@@ -136,24 +212,126 @@ export declare function resolveText(instance: i18n, value: UiText, requestedLoca
 export declare const namespace: string;
 export declare const resources: Record<string, Record<string, Record<string, string>>>;
 export declare const catalogMetadata: Readonly<Record<string, unknown>>;
-""".trimIndent())
-        write("react.js", """
+            """.trimIndent(),
+        )
+        write(
+            "react.js",
+            """
 import { useTranslation } from 'react-i18next';
 import { namespace, resolveText } from './index.js';
 export function useKtstrings(requestedLocale) {
   const {i18n, ready} = useTranslation(namespace);
   return {text: value => resolveText(i18n,value,requestedLocale), i18n, ready};
 }
-""".trimIndent())
-        write("react.d.ts", """
+            """.trimIndent(),
+        )
+        write(
+            "react.d.ts",
+            """
 import type { i18n } from 'i18next';
 import type { UiText } from './index.js';
 export declare function useKtstrings(requestedLocale?: string): { text(value: UiText): string; i18n: i18n; ready: boolean };
-""".trimIndent())
-        write("package.json",json(mapOf("name" to packageName,"version" to options.reactPackageVersion,"type" to "module","files" to listOf("index.js","index.d.ts","react.js","react.d.ts","locales","metadata"),"exports" to mapOf("." to mapOf("types" to "./index.d.ts","import" to "./index.js"),"./react" to mapOf("types" to "./react.d.ts","import" to "./react.js"),"./locales/*" to "./locales/*.json","./locales/*.json" to "./locales/*.json","./locales/*.js" to "./locales/*.js","./metadata/catalog.json" to "./metadata/catalog.json"),"peerDependencies" to mapOf("i18next" to ">=25 <27","react" to ">=18 <20","react-i18next" to ">=15 <17"),"peerDependenciesMeta" to mapOf("react" to mapOf("optional" to true),"react-i18next" to mapOf("optional" to true)))))
+            """.trimIndent(),
+        )
+        write(
+            "package.json",
+            json(
+                mapOf(
+                    "name" to packageName,
+                    "version" to options.reactPackageVersion,
+                    "type" to "module",
+                    "files" to listOf("index.js", "index.d.ts", "react.js", "react.d.ts", "locales", "metadata"),
+                    "exports" to
+                        mapOf(
+                            "." to mapOf("types" to "./index.d.ts", "import" to "./index.js"),
+                            "./react" to mapOf("types" to "./react.d.ts", "import" to "./react.js"),
+                            "./locales/*" to "./locales/*.json",
+                            "./locales/*.json" to "./locales/*.json",
+                            "./locales/*.js" to "./locales/*.js",
+                            "./metadata/catalog.json" to "./metadata/catalog.json",
+                        ),
+                    "peerDependencies" to
+                        mapOf(
+                            "i18next" to ">=25 <27",
+                            "react" to ">=18 <20",
+                            "react-i18next" to ">=15 <17",
+                        ),
+                    "peerDependenciesMeta" to
+                        mapOf("react" to mapOf("optional" to true), "react-i18next" to mapOf("optional" to true)),
+                ),
+            ),
+        )
     }
 }
 
 internal fun apiName(id: String) = Names.camel(id)
-internal fun quote(value: String): String = buildString { append('"'); value.forEach { c -> when(c) { '"' -> append("\\\""); '\\' -> append("\\\\"); '\n' -> append("\\n"); '\r' -> append("\\r"); '\t' -> append("\\t"); else -> if(c.code < 32) append("\\u%04x".format(c.code)) else append(c) } }; append('"') }
-internal fun json(value: Any?): String = when(value) { null -> "null"; is String -> quote(value); is Number,is Boolean -> value.toString(); is Map<*,*> -> value.entries.joinToString(",","{","}") { quote(it.key.toString()) + ":" + json(it.value) }; is Iterable<*> -> value.joinToString(",","[","]") { json(it) }; else -> error("Unsupported JSON value") }
+
+internal fun quote(value: String): String =
+    buildString {
+        append('"')
+        value.forEach { c ->
+            when (c) {
+                '"' -> {
+                    append("\\\"")
+                }
+
+                '\\' -> {
+                    append("\\\\")
+                }
+
+                '\n' -> {
+                    append("\\n")
+                }
+
+                '\r' -> {
+                    append("\\r")
+                }
+
+                '\t' -> {
+                    append("\\t")
+                }
+
+                else -> {
+                    if (c.code <
+                        32
+                    ) {
+                        append("\\u%04x".format(c.code))
+                    } else {
+                        append(c)
+                    }
+                }
+            }
+        }
+        append('"')
+    }
+
+internal fun json(value: Any?): String =
+    when (value) {
+        null -> {
+            "null"
+        }
+
+        is String -> {
+            quote(value)
+        }
+
+        is Number, is Boolean -> {
+            value.toString()
+        }
+
+        is Map<*, *> -> {
+            value.entries.joinToString(",", "{", "}") {
+                quote(it.key.toString()) +
+                    ":" +
+                    json(it.value)
+            }
+        }
+
+        is Iterable<*> -> {
+            value.joinToString(",", "[", "]") { json(it) }
+        }
+
+        else -> {
+            error("Unsupported JSON value")
+        }
+    }
