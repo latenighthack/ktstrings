@@ -15,7 +15,7 @@ def run(*args):
     print('+', ' '.join(map(str, args)), flush=True)
     return subprocess.check_output(list(map(str, args)), text=True, cwd=root, stderr=subprocess.STDOUT)
 
-print(run(root/'gradlew', '-p', fixture, ':catalog:assembleRelease', ':catalogReverse:assembleRelease', ':app:assembleRelease', ':app:bundleRelease', ':app:assembleReleaseAndroidTest', '--console=plain'))
+print(run(root/'gradlew', '-p', fixture, ':catalog:assembleRelease', ':catalogReverse:assembleRelease', ':resourceOnly:verifyKtstringsPackaging', ':app:assembleRelease', ':app:bundleRelease', ':app:assembleReleaseAndroidTest', '--console=plain'))
 aar = fixture/'catalog/build/outputs/aar/catalog-release.aar'
 apk = fixture/'app/build/outputs/apk/release/app-release.apk'
 aab = fixture/'app/build/outputs/bundle/release/app-release.aab'

@@ -82,6 +82,14 @@ class CatalogParserTest {
         fails("PLURAL_SELECTOR", catalog(plural.replace("\"quantity\":\"int\"", "\"quantity\":\"string\"")))
         fails("RESERVED_COUNT", catalog(plural.replace("\"quantity\":\"int\"", "\"quantity\":\"int\",\"count\":\"int\"")))
     }
+    @Test fun androidResourceOnlyConsumersDoNotRequireKotlinIntegration() {
+        val compiled = parse(catalog())
+        val output = directory.resolve("native-only")
+        Compiler.generate(compiled, GenerationOptions(platforms = setOf("android")), output)
+        assertContains(Files.readString(output.resolve("android/resources/values/strings.xml")), "ktstrings_app_welcome")
+        assertTrue(Files.exists(output.resolve("android/resources/values-b+en/strings.xml")))
+        assertFalse(Files.exists(output.resolve("android/kotlin")))
+    }
     @Test fun deterministicGenerationRemovesStaleOutputs() {
         val parsed = parse(catalog())
         val output = directory.resolve("generated")

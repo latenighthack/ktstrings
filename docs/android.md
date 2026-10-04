@@ -2,6 +2,8 @@
 
 Apply the consumer Kotlin/Android plugins and `com.latenighthack.ktstrings`, then set `ktstrings.kotlinPackage`. Catalogs default to `localization/`. The plugin registers generated resources through Android variant APIs and connects generation to compilation automatically.
 
+Android resource-only projects can apply the Android and ktstrings plugins without Kotlin tooling or `kotlinPackage`; the native XML still enters the AAR. Kotlin contracts, runtime dependencies, and typed wrappers are integrated only when the consumer applies Kotlin.
+
 Use the generated `AndroidTextResolver(context).resolve(Messages.welcome("Ada"), "fr-CA")`. An explicit locale overrides device/app configuration. The resolver selects an available whole message first, creates a native locale resource context, and calls `Resources.getString` or `getQuantityString`; a fallback from missing Arabic text to English uses English grammar.
 
 The plugin emits concrete resource references so Android resource shrinking can retain used localization resources. A consumer library's AAR contains the native definitions; the application APK/AAB contains compiled resources. Catalog JSON is a build input and is not needed on a device.
