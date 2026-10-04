@@ -10,6 +10,11 @@ allprojects {
     version = providers.gradleProperty("VERSION_NAME").get()
 }
 subprojects {
+    // Central accepts documentation archives; include usable project documentation on every target.
+    tasks.withType<Jar>().matching { it.name.contains("javadoc", ignoreCase = true) }.configureEach {
+        from(rootProject.file("README.md"))
+        from(rootProject.file("docs")) { into("docs") }
+    }
     plugins.withId("com.vanniktech.maven.publish") {
         extensions.configure<com.vanniktech.maven.publish.MavenPublishBaseExtension> {
             publishToMavenCentral(automaticRelease = false)

@@ -35,6 +35,8 @@ for version in args.versions:
     fixture=ROOT/'build/published-consumers'/version
     if fixture.exists(): shutil.rmtree(fixture)
     fixture.mkdir(parents=True)
+    # Native compiler/link workers execute inside the consumer daemon; its defaults are too small.
+    fixture.joinpath('gradle.properties').write_text('org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8\norg.gradle.caching=true\nkotlin.mpp.enableCInteropCommonization.nowarn=true\n')
     shutil.copytree(ROOT/'integration/react/localization', fixture/'localization')
     fixture.joinpath('settings.gradle.kts').write_text(f'''pluginManagement {{ repositories {{ maven {{ url = uri("{repository.as_uri()}") }}; google(); mavenCentral(); gradlePluginPortal() }} }}
 dependencyResolutionManagement {{ repositories {{ maven {{ url = uri("{repository.as_uri()}") }}; google(); mavenCentral() }} }}

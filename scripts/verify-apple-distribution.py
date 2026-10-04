@@ -2,6 +2,7 @@
 """Qualify actual generated Kotlin XCFrameworks through direct Xcode embedding."""
 import argparse
 import hashlib
+import json
 import pathlib
 import plistlib
 import subprocess
@@ -10,9 +11,14 @@ import sys
 parser = argparse.ArgumentParser()
 parser.add_argument("xcframework", type=pathlib.Path)
 parser.add_argument("--kind", choices=["static", "dynamic"], required=True)
-parser.add_argument("--simulator", default="D5C3A7DC-5274-4681-AA24-F8550DAE73E9")
+parser.add_argument("--simulator", help="Available iPhone simulator UDID; automatically selected when omitted")
 parser.add_argument("--output", type=pathlib.Path, default=pathlib.Path("build/apple-distribution-proof"))
 args = parser.parse_args()
+if args.simulator is None:
+    inventory = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "--json"]))
+    choices = [device for runtime, devices in inventory["devices"].items() if "iOS" in runtime for device in devices if device.get("isAvailable", True)]
+    assert choices, "Apple proof requires an available iOS simulator"
+    args.simulator = next((device["udid"] for device in choices if "Basekit bindings acceptance" == device["name"]), choices[0]["udid"])
 xcframework = args.xcframework.resolve()
 output = args.output.resolve() / args.kind
 output.mkdir(parents=True, exist_ok=True)
