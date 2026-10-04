@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "namespace": "app",
+  "sourceLocale": "en",
+  "messages": {
+    "welcome": {"description": "Greeting on the home screen", "arguments": {"name": "string"}, "body": {"text": "Welcome, {name}"}},
+    "items.count": {"description": "Item count", "arguments": {"count": "int"}, "body": {"plural": "count", "cases": {"one": "{count} item", "other": "{count} items"}}},
+    "history": {"body": {"text": "History stays literal: 100% {{name}} $t(no) 🦉"}}
+  }
+}

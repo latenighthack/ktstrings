@@ -35,7 +35,7 @@ interface CatalogEmitter {
 }
 class CatalogException(val code: String, message: String) : IllegalArgumentException("$code: $message")
 object Names {
-    fun pascal(id: String): String = id.split('.').joinToString("") { it.replaceFirstChar(Char::uppercaseChar) }
+    fun pascal(id: String): String = id.split('.', '_').joinToString("") { it.replaceFirstChar(Char::uppercaseChar) }
     fun camel(id: String): String = pascal(id).replaceFirstChar(Char::lowercaseChar)
-    fun resource(namespace: String, id: String): String = "ktstrings_${namespace}_${id.replace('.', '_')}"
+    fun resource(namespace: String, id: String): String = "ktstrings_${namespace}_${id.replace('.', '_').lowercase()}"
 }

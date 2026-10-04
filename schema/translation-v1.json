@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/latenighthack/ktstrings/schema/translation-v1.json",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "locale",
+    "messages"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "locale": {
+      "type": "string"
+    },
+    "messages": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/body"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "body": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "text"
+          ],
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "plural",
+            "cases"
+          ],
+          "properties": {
+            "plural": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+            },
+            "cases": {
+              "type": "object",
+              "required": [
+                "other"
+              ],
+              "propertyNames": {
+                "enum": [
+                  "zero",
+                  "one",
+                  "two",
+                  "few",
+                  "many",
+                  "other"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,1 @@
+{"schemaVersion":1,"locale":"ar","messages":{"items.count":{"plural":"count","cases":{"zero":"لا عناصر {count}","one":"عنصر {count}","two":"عنصران {count}","few":"{count} عناصر","many":"{count} عنصرًا","other":"{count} عنصر"}}}}
