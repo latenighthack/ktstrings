@@ -26,7 +26,7 @@ jobs:
           node-version: '22'
       - uses: android-actions/setup-android@v3
       - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
-      - run: brew install xcodegen
+      - run: brew install xcodegen gnupg
       - run: xcodebuild -version
       - run: ./gradlew :ktstrings:jvmTest :ktstrings-compiler:test :ktstrings-gradle-plugin:test --max-workers=2
       - name: Qualify static and dynamic direct Xcode distribution
@@ -45,6 +45,8 @@ jobs:
         run: |
           python3 scripts/verify-release-metadata.py --version 0.1.0
           python3 scripts/verify-release-metadata.py --version 0.1.1-candidate-check
+      - name: Prove PGP signing without production credentials
+        run: python3 scripts/verify-signing.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

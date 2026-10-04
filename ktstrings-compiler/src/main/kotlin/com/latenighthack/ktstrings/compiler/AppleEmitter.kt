@@ -87,7 +87,7 @@ class AppleEmitter : CatalogEmitter {
                 val available = locales.filterValues { id in it }.keys
                 kotlin.append("            \"$id\" -> setOf(${available.joinToString(", ") { "\"$it\"" }})\n")
             }
-            kotlin.append("            else -> emptySet()\n        }\n        var candidate = requested.replace('_', '-')\n        while (candidate.isNotEmpty()) {\n            available.firstOrNull { it.equals(candidate, ignoreCase = true) }?.let { return it }\n            candidate = candidate.substringBeforeLast('-', \"\")\n        }\n        return \"${catalog.source.sourceLocale}\"\n    }\n}\n")
+            kotlin.append("            else -> emptySet()\n        }\n        return LocaleSelection.select(requested, available.toList(), \"${catalog.source.sourceLocale}\")\n    }\n}\n")
             write(root.resolve("kotlin/${pkg.replace('.', '/')}/AppleMessages.kt"), kotlin.toString())
         }
     }

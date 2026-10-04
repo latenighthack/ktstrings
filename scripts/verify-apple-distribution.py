@@ -55,6 +55,8 @@ import Shared
         let resolver = AppleMessagesResolver(bundlePath: nil)
         let greeting = Messages.shared.welcome(name: "Ada")
         precondition(resolver.resolve(text: greeting, requestedLocale: "fr-CA") == "Bienvenue, Ada")
+        precondition(resolver.resolve(text: greeting, requestedLocale: " fr ") == "Bienvenue, Ada")
+        precondition(resolver.resolve(text: greeting, requestedLocale: "fr-CA-u-nu-latn") == "Bienvenue, Ada")
         precondition(resolver.resolve(text: greeting, requestedLocale: "ar") == "Welcome, Ada")
         precondition(resolver.resolve(text: greeting, requestedLocale: "en-GB") == "Hello, Ada")
         precondition(resolver.resolve(text: Messages.shared.itemsCount(count: 23), requestedLocale: "ru").hasSuffix("несколько"))

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Qualify publication signing with a disposable key; never contact Central."""
 import argparse
+import contextlib
 import os
 import pathlib
 import subprocess
@@ -10,7 +11,8 @@ root = pathlib.Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument("--version", default="0.1.6-signing-proof")
 args = parser.parse_args()
-with tempfile.TemporaryDirectory(prefix="ktstrings-disposable-signing-") as signing_home:
+with tempfile.TemporaryDirectory(prefix="ktstrings-signing-", dir="/tmp") as signing_home, contextlib.ExitStack() as cleanup:
+    cleanup.callback(lambda: subprocess.run(["gpgconf", "--homedir", signing_home, "--kill", "gpg-agent"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
     gpg = ["gpg", "--homedir", signing_home, "--batch", "--pinentry-mode", "loopback", "--passphrase", ""]
     subprocess.run(gpg + ["--quick-generate-key", "ktstrings disposable candidate proof <candidate-test@example.invalid>", "rsa2048", "sign", "1d"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     identities = subprocess.check_output(gpg + ["--with-colons", "--list-secret-keys"], stderr=subprocess.PIPE).decode()

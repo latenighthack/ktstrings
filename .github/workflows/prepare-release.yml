@@ -31,6 +31,7 @@ jobs:
           java-version: '17'
       - uses: android-actions/setup-android@v3
       - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - run: brew install gnupg
       - name: Prepare all signed publications without remote upload
         run: ./gradlew -PreleaseSigning=true publishAllPublicationsToCandidateRepository --max-workers=2
       - name: Verify tag and signed release metadata

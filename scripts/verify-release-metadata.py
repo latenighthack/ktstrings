@@ -27,9 +27,9 @@ required = {"ktstrings", "ktstrings-jvm", "ktstrings-android", "ktstrings-js", "
 actual = {directory.parent.name for directory in group.glob("*/" + args.version) if directory.is_dir()}
 assert required <= actual, f"Missing publications: {required - actual}"
 ns = {"m": "http://maven.apache.org/POM/4.0.0"}
-with tempfile.TemporaryDirectory(prefix="ktstrings-signature-audit-") as gpg_home:
+with tempfile.TemporaryDirectory(prefix="ktstrings-audit-", dir="/tmp") as gpg_home:
     if args.public_key:
-        subprocess.run(["gpg", "--homedir", gpg_home, "--batch", "--import", str(args.public_key.resolve())], check=True)
+        subprocess.run(["gpg", "--homedir", gpg_home, "--batch", "--no-autostart", "--import", str(args.public_key.resolve())], check=True)
     for artifact in sorted(actual):
         directory = group / artifact / args.version
         stem = f"{artifact}-{args.version}"
@@ -49,7 +49,7 @@ with tempfile.TemporaryDirectory(prefix="ktstrings-signature-audit-") as gpg_hom
             if args.require_signatures:
                 signature = directory / (file.name + ".asc")
                 assert signature.is_file(), f"Missing signature: {signature}"
-                command = ["gpg", "--batch"]
+                command = ["gpg", "--batch", "--no-autostart", "--no-auto-key-retrieve"]
                 if args.public_key:
                     command += ["--homedir", gpg_home]
                 subprocess.run(command + ["--verify", str(signature), str(file)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
