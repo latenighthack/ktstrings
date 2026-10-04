@@ -60,7 +60,8 @@ for framework in frameworks:
     symbols = run("nm", framework / "Shared", stdout=subprocess.PIPE).stdout.decode()
     assert "ktstrings_appleproof_items_count" in symbols, "Native helper absent from Kotlin framework"
 
-swift = '''import UIKit
+swift = r'''import UIKit
+import SwiftUI
 import Shared
 @main final class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
@@ -81,6 +82,24 @@ import Shared
         precondition(resolver.resolve(text: plural, requestedLocale: "en") == "3 items")
         precondition(resolver.resolve(text: plural, requestedLocale: "ar").hasSuffix("قليل"))
         precondition(resolver.resolve(text: LiteralText(text: "historical literal"), requestedLocale: "ar") == "historical literal")
+        let label = UILabel()
+        label.text = resolver.resolve(text: greeting, requestedLocale: "en")
+        precondition(label.text == "Welcome, Ada")
+        label.text = resolver.resolve(text: greeting, requestedLocale: "fr")
+        precondition(label.text == "Bienvenue, Ada")
+        let heading = LocalizedHeading(message: greeting, resolver: resolver)
+        let hosting = UIHostingController(rootView: heading.environment(\.locale, Locale(identifier: "en")))
+        window = UIWindow(frame: UIScreen.main.bounds)
+        window!.rootViewController = hosting
+        window!.makeKeyAndVisible()
+        let english = hosting.sizeThatFits(in: CGSize(width: 1000, height: 1000))
+        hosting.rootView = heading.environment(\.locale, Locale(identifier: "fr"))
+        hosting.view.setNeedsLayout()
+        hosting.view.layoutIfNeeded()
+        let french = hosting.sizeThatFits(in: CGSize(width: 1000, height: 1000))
+        precondition(english.width > 0 && french.width > english.width, "SwiftUI did not react to its locale environment")
+        precondition(heading.message === greeting, "Locale change replaced the reference")
+        print("KTSTRINGS_UIKIT_SWIFTUI_IOS_PASS")
         print("KTSTRINGS_APPLE_SIMULATOR_PASS")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { exit(0) }
         return true
@@ -88,6 +107,8 @@ import Shared
 }
 '''
 (output / "App.swift").write_text(swift)
+ui_sample = pathlib.Path(__file__).resolve().parents[1] / "integration/apple/LocalizedHeading.swift"
+shutil.copy2(ui_sample, output / "LocalizedHeading.swift")
 (output / "project.yml").write_text(f'''name: KtstringsAppleProof
 options:
   deploymentTarget:
@@ -96,7 +117,7 @@ targets:
   Proof:
     type: application
     platform: iOS
-    sources: [App.swift]
+    sources: [App.swift, LocalizedHeading.swift]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.ktstrings.appleproof
@@ -142,6 +163,7 @@ with tempfile.TemporaryDirectory(prefix="runtime-without-catalog-", dir=output) 
             moved.rename(catalog)
 print(launch.stdout.decode())
 assert b"KTSTRINGS_APPLE_SIMULATOR_PASS" in launch.stdout, "Simulator did not prove native lookup"
+assert b"KTSTRINGS_UIKIT_SWIFTUI_IOS_PASS" in launch.stdout, "UIKit/SwiftUI did not prove locale updates"
 archive = output / "Proof.xcarchive"
 run("xcodebuild", "-project", project, "-scheme", "Proof", "-configuration", "Release", "-destination", "generic/platform=iOS", "-archivePath", archive, "archive", stdout=(output / "archive-build.log").open("w"), stderr=subprocess.STDOUT)
 archived_app = archive / "Products/Applications/Proof.app"
@@ -156,19 +178,36 @@ run("codesign", "--force", "--sign", "-", archived_app)
 run("codesign", "--verify", "--deep", "--strict", archived_app)
 
 macos = next(framework for framework in frameworks if "macos" in str(framework.parent))
-native_swift = output / "MacProof.swift"
-native_swift.write_text('''import Foundation
+native_swift = output / "main.swift"
+native_swift.write_text(r'''import Foundation
+import AppKit
+import SwiftUI
 import Shared
 let resolver = AppleMessagesResolver(bundlePath: CommandLine.arguments[1])
-precondition(resolver.resolve(text: Messages.shared.welcome(name: "Ada"), requestedLocale: "fr-CA") == "Bienvenue, Ada")
+let greeting = Messages.shared.welcome(name: "Ada")
+let label = NSTextField(labelWithString: resolver.resolve(text: greeting, requestedLocale: "en"))
+precondition(label.stringValue == "Welcome, Ada")
+label.stringValue = resolver.resolve(text: greeting, requestedLocale: "fr-CA")
+precondition(label.stringValue == "Bienvenue, Ada")
+let heading = LocalizedHeading(message: greeting, resolver: resolver)
+let hosting = NSHostingView(rootView: heading.environment(\.locale, Locale(identifier: "en")))
+let english = hosting.fittingSize
+hosting.rootView = heading.environment(\.locale, Locale(identifier: "fr"))
+hosting.layoutSubtreeIfNeeded()
+let french = hosting.fittingSize
+precondition(english.width > 0 && french.width > english.width, "SwiftUI did not react to its locale environment")
+precondition(heading.message === greeting, "Locale change replaced the reference")
+print("KTSTRINGS_APPKIT_SWIFTUI_MACOS_PASS")
 print("KTSTRINGS_MACOS_PASS")
 ''')
 native = output / "MacProof"
-run("xcrun", "swiftc", "-F", macos.parent, "-framework", "Shared", "-Xlinker", "-rpath", "-Xlinker", macos.parent, native_swift, "-o", native)
-run(native, macos)
+run("xcrun", "swiftc", "-F", macos.parent, "-framework", "Shared", "-Xlinker", "-rpath", "-Xlinker", macos.parent, native_swift, output / "LocalizedHeading.swift", "-o", native)
+mac_launch = run(native, macos, stdout=subprocess.PIPE)
+print(mac_launch.stdout.decode())
+assert b"KTSTRINGS_APPKIT_SWIFTUI_MACOS_PASS" in mac_launch.stdout, "AppKit/SwiftUI did not prove locale updates"
 negative = output / "Negative.swift"
 for call in ['Messages.shared.welcome(name: 42)', 'Messages.shared.welcome()']:
     negative.write_text('import Shared\nlet invalid = ' + call + '\n')
     result = subprocess.run(["xcrun", "swiftc", "-typecheck", "-F", str(macos.parent), str(negative)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     assert result.returncode != 0, "Invalid Swift arguments unexpectedly compiled"
-print(f"{args.kind} Kotlin XCFramework qualified: all slices, Swift typing, simulator, device archive, embedded binary policy, signatures, macOS")
+print(f"{args.kind} Kotlin XCFramework qualified: all slices, Swift typing, simulator, device archive, embedded binary policy, signatures, SwiftUI iOS/macOS, UIKit, AppKit")

@@ -18,6 +18,35 @@ let text = resolver.resolve(text: heading, requestedLocale: "fr-CA")
 
 The resolver selects a complete message using exact locale, progressively less-specific locale, then the catalog source locale. Foundation performs native plural selection and formatting with the selected language. Native formatting may use locale-specific grouping and digits; for example, English Foundation formats `Int.MAX_VALUE` as `2,147,483,647`.
 
+SwiftUI on iOS and macOS can retain a typed reference and resolve it using the view's locale environment. Changing that environment rerenders the same reference. The complete [LocalizedHeading example](../integration/apple/LocalizedHeading.swift) is compiled and rendered by the Apple consumer proof:
+
+```swift
+struct Heading: View {
+    let message: UiText
+    let resolver: AppleMessagesResolver
+    @Environment(\.locale) private var locale
+    var body: some View {
+        Text(verbatim: resolver.resolve(text: message, requestedLocale: locale.identifier))
+    }
+}
+// Construct once; update the app's locale environment when its language changes.
+let message = Messages.shared.welcome(name: "Ada")
+Heading(message: message, resolver: resolver)
+    .environment(\.locale, Locale(identifier: "fr"))
+```
+
+UIKit and AppKit use the resolved string directly. The controller reruns its presentation update when the application's selected locale changes; the generated message remains unchanged:
+
+```swift
+let message = Messages.shared.welcome(name: "Ada")
+// UIKit UILabel:
+label.text = resolver.resolve(text: message, requestedLocale: selectedLocale)
+// AppKit NSTextField:
+textField.stringValue = resolver.resolve(text: message, requestedLocale: selectedLocale)
+```
+
+The basic exported resolver needs no separate Swift support library or UI framework dependency in the Kotlin runtime. The acceptance proof creates actual `UIHostingController` and `NSHostingView` presentations, checks a rendered size change after changing SwiftUI's locale environment, and checks UIKit/AppKit label values before and after a locale change while preserving the message reference.
+
 Resource lookup checks framework identity and the host application's framework directory. Tests and unusual hosting can provide an explicit framework path through `bundlePath`; an invalid explicit override fails rather than silently finding another bundle. Missing packaged resources cause a clear configuration error rather than displaying a raw message ID.
 
 Run the independent consumer fixture with:
