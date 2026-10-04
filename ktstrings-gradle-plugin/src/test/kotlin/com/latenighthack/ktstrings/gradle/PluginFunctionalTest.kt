@@ -47,6 +47,13 @@ dependencies { api files('$runtime') }
             directory.resolve("build").toFile().deleteRecursively()
         }
     }
+    @Test fun kotlinIntegrationRequiresExplicitPackage() {
+        fixture()
+        val build=Files.readString(directory.resolve("build.gradle"))
+        write("build.gradle",build.replace("id 'com.latenighthack.ktstrings'", "id 'org.jetbrains.kotlin.jvm'; id 'com.latenighthack.ktstrings'"))
+        val failed=GradleRunner.create().withProjectDir(directory.toFile()).withPluginClasspath().withArguments("generateKtstrings").buildAndFail()
+        assertContains(failed.output,"ktstrings.kotlinPackage is required")
+    }
     @Test fun catalogOnlyTaskGraphAndConfigurationCache() {
         fixture()
         val initial=run("collectKtstringsReact","verifyKtstringsPackaging","check","--configuration-cache")

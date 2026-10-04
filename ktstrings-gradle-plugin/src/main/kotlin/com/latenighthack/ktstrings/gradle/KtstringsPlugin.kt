@@ -17,7 +17,7 @@ class KtstringsPlugin : Plugin<Project> {
         dependencies.add(compiler.name,"${ReleaseCoordinates.GROUP}:ktstrings-compiler:${ReleaseCoordinates.VERSION}")
         val generation=tasks.register("generateKtstrings",GenerateKtstringsTask::class.java) { task -> task.run {
             catalogDirectory.set(extension.catalogDirectory);compilerClasspath.from(compiler)
-            kotlinPackage.set(extension.kotlinPackage)
+            kotlinPackage.set(extension.kotlinPackage);kotlinIntegrated.convention(false)
             appleEnabled.set(extension.apple.enabled);androidEnabled.convention(false);reactEnabled.set(extension.react.enabled)
             frameworkName.set(extension.apple.frameworkName);frameworkBundleIdentifier.set(extension.apple.frameworkBundleIdentifier)
             reactPackageName.set(extension.react.packageName);reactPackageVersion.set(extension.react.packageVersion)
@@ -41,6 +41,7 @@ class KtstringsPlugin : Plugin<Project> {
         } }
         val verification=tasks.register("verifyKtstringsPackaging",VerifyKtstringsPackaging::class.java)
         pluginManager.withPlugin("org.jetbrains.kotlin.multiplatform") {
+            generation.configure { it.kotlinIntegrated.set(true) }
             val kotlin=extensions.getByType(KotlinMultiplatformExtension::class.java)
             kotlin.sourceSets.named("commonMain").configure { it.kotlin.srcDir(generation.flatMap { it.outputDirectory.dir("kotlin") }) }
             dependencies.add("commonMainApi","${ReleaseCoordinates.GROUP}:ktstrings:${ReleaseCoordinates.VERSION}")
@@ -49,10 +50,12 @@ class KtstringsPlugin : Plugin<Project> {
             configureApple(project,extension,generation)
         }
         pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
+            generation.configure { it.kotlinIntegrated.set(true) }
             pluginManager.apply("java-library")
             extensions.getByType(KotlinJvmProjectExtension::class.java).sourceSets.named("main").configure { it.kotlin.srcDir(generation.flatMap { it.outputDirectory.dir("kotlin") }) }
             dependencies.add("api","${ReleaseCoordinates.GROUP}:ktstrings:${ReleaseCoordinates.VERSION}")
         }
+        pluginManager.withPlugin("org.jetbrains.kotlin.android") { generation.configure { it.kotlinIntegrated.set(true) } }
         pluginManager.withPlugin("com.android.library") { configureAndroid(project,extension,generation) }
         pluginManager.withPlugin("com.android.application") { configureAndroid(project,extension,generation) }
         pluginManager.withPlugin("com.google.devtools.ksp") {

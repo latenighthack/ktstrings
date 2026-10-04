@@ -17,6 +17,7 @@ abstract class GenerateKtstringsTask @Inject constructor(private val exec: ExecO
     @get:Classpath abstract val compilerClasspath: ConfigurableFileCollection
     @get:Input @get:Optional abstract val kotlinPackage: Property<String>
     @get:Input @get:Optional abstract val androidPackage: Property<String>
+    @get:Input abstract val kotlinIntegrated: Property<Boolean>
     @get:Input abstract val appleEnabled: Property<Boolean>
     @get:Input abstract val androidEnabled: Property<Boolean>
     @get:Input abstract val reactEnabled: Property<Boolean>
@@ -28,6 +29,7 @@ abstract class GenerateKtstringsTask @Inject constructor(private val exec: ExecO
     @get:Internal abstract val androidSourcesDirectory: DirectoryProperty
     @get:OutputDirectory abstract val outputDirectory: DirectoryProperty
     @TaskAction fun generate() {
+        if (kotlinIntegrated.get() && !kotlinPackage.isPresent) throw GradleException("ktstrings.kotlinPackage is required when Kotlin generation is integrated")
         if (reactEnabled.get() && (!reactPackageName.isPresent || reactPackageVersion.get() == "unspecified")) throw GradleException("ktstrings.react requires a packageName and packageVersion (or an assigned project version)")
         val arguments = mutableListOf("generate", "--catalog", catalogDirectory.get().asFile.absolutePath,"--output",outputDirectory.get().asFile.absolutePath)
         fun option(name: String, value: Property<String>) { if(value.isPresent) arguments.addAll(listOf(name,value.get())) }
