@@ -9,6 +9,7 @@ import java.nio.file.StandardCopyOption
 
 object Compiler {
     fun generate(catalog: CompiledCatalog, options: GenerationOptions, output: Path) {
+        options.kotlinPackage?.let(Names::validateKotlinPackage)
         val absolute = output.toAbsolutePath()
         Files.createDirectories(absolute.parent)
         val staging = Files.createTempDirectory(absolute.parent, ".ktstrings-")
@@ -50,6 +51,7 @@ fun main(arguments: Array<String>) {
         }
         val allowed = setOf("--catalog", "--output", "--kotlin-package", "--android-package", "--react-package", "--react-version", "--framework-name", "--framework-bundle-id", "--platforms")
         if ((values.keys - allowed).isNotEmpty()) throw CatalogException("CLI", "Unknown options ${values.keys - allowed}")
+        values["--platforms"]?.split(',')?.filter { it.isNotEmpty() && it !in setOf("kotlin", "android", "apple", "react") }?.takeIf { it.isNotEmpty() }?.let { throw CatalogException("CLI", "Unsupported platforms $it") }
         val catalog = CatalogParser().load(Path.of(values["--catalog"] ?: "localization"))
         when (command) {
             "validate" -> println("Validated ${catalog.source.messages.size} messages; CLDR ${catalog.cldrVersion}")

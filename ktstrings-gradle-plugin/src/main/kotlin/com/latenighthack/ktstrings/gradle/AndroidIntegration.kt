@@ -23,11 +23,17 @@ internal fun configureAndroid(project: Project, extension: KtstringsExtension, g
     }
     project.extensions.findByType(LibraryAndroidComponentsExtension::class.java)?.let { components ->
         components.finalizeDsl { dsl -> generation.configure { it.androidPackage.set(dsl.namespace) } }
-        components.onVariants(components.selector().all(), ::variant)
+        components.onVariants(components.selector().all()) { androidVariant ->
+            variant(androidVariant)
+            if (androidVariant.buildType == "release") project.tasks.withType(VerifyKtstringsPackaging::class.java).configureEach { it.androidPackages.from(androidVariant.artifacts.get(com.android.build.api.artifact.SingleArtifact.AAR)) }
+        }
     }
     project.extensions.findByType(ApplicationAndroidComponentsExtension::class.java)?.let { components ->
         components.finalizeDsl { dsl -> generation.configure { it.androidPackage.set(dsl.namespace) } }
-        components.onVariants(components.selector().all(), ::variant)
+        components.onVariants(components.selector().all()) { androidVariant ->
+            variant(androidVariant)
+            if (androidVariant.buildType == "release") project.tasks.withType(VerifyKtstringsPackaging::class.java).configureEach { it.androidPackages.from(androidVariant.artifacts.get(com.android.build.api.artifact.SingleArtifact.APK), androidVariant.artifacts.get(com.android.build.api.artifact.SingleArtifact.BUNDLE)) }
+        }
     }
     project.pluginManager.withPlugin("org.jetbrains.kotlin.multiplatform") {
         val kotlin = project.extensions.getByType(KotlinMultiplatformExtension::class.java)
@@ -66,5 +72,32 @@ abstract class StageAndroidResources : DefaultTask() {
             if (Files.isDirectory(path)) Files.createDirectories(target)
             else { Files.createDirectories(target.parent); Files.copy(path, target, StandardCopyOption.REPLACE_EXISTING) }
         } }
+    }
+}
+
+internal fun verifyAndroidArtifact(artifact: java.io.File) {
+    if (artifact.isDirectory) {
+        val apks = artifact.walkTopDown().filter { it.isFile && it.extension == "apk" }.toList()
+        if (apks.isEmpty()) throw org.gradle.api.GradleException("Android distribution contains no APK: $artifact")
+        apks.forEach(::verifyAndroidArtifact)
+        return
+    }
+    java.util.zip.ZipFile(artifact).use { archive ->
+        val entries = archive.entries().asSequence().map { it.name }.toList()
+        when (artifact.extension) {
+            "aar" -> {
+                val resources = entries.filter { it.startsWith("res/values") && it.endsWith(".xml") }
+                if (resources.none { name -> archive.getInputStream(archive.getEntry(name)).bufferedReader().use { it.readText() }.contains("ktstrings_") })
+                    throw org.gradle.api.GradleException("AAR has no generated native ktstrings resource definitions: $artifact")
+            }
+            "apk", "aab" -> {
+                val table = if (artifact.extension == "apk") "resources.arsc" else "base/resources.pb"
+                if (table !in entries) throw org.gradle.api.GradleException("Android distribution has no compiled native resource table: $artifact")
+                val data = archive.getInputStream(archive.getEntry(table)).use { it.readBytes() }
+                if (!data.toString(Charsets.ISO_8859_1).contains("ktstrings_") && !data.toString(Charsets.UTF_16LE).contains("ktstrings_"))
+                    throw org.gradle.api.GradleException("Android distribution has no compiled ktstrings resource entries: $artifact")
+            }
+            else -> throw org.gradle.api.GradleException("Unsupported Android distribution artifact: $artifact")
+        }
     }
 }

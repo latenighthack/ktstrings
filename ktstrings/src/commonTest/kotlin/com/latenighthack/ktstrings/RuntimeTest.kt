@@ -25,6 +25,9 @@ class RuntimeTest {
             assertEquals(1, diagnostics.size)
         }
         assertEquals(fallback, decoder.decode(ServerMessage("app", "items", mapOf("count" to ArgumentValue.StringValue("3"))), fallback))
+        assertEquals(fallback, decoder.decode(ServerMessage("app", "items", emptyMap()), fallback))
+        assertEquals(fallback, decoder.decode(ServerMessage("app", "items", mapOf("count" to ArgumentValue.IntValue(3), "extra" to ArgumentValue.StringValue("ignored"))), fallback))
+        assertEquals(-3, DecoderValidation.integer(ServerMessage("app", "other", mapOf("value" to ArgumentValue.IntValue(-3))), "value"))
         assertEquals(Known(Int.MAX_VALUE), decoder.decode(ServerMessage("app", "items", mapOf("count" to ArgumentValue.IntValue(Int.MAX_VALUE))), fallback))
     }
     @Test fun selectsCompleteMessageAndProgressiveFallback() {

@@ -27,6 +27,8 @@ class CatalogParserTest {
         fails("NAME_COLLISION", catalog("\"a.b\":{\"body\":{\"text\":\"a\"}},\"aB\":{\"body\":{\"text\":\"b\"}}"))
         fails("NAME_COLLISION", catalog("\"a_b\":{\"body\":{\"text\":\"a\"}},\"a.b\":{\"body\":{\"text\":\"b\"}}"))
         fails("RESERVED_NAME", catalog("\"constructor\":{\"body\":{\"text\":\"a\"}}"))
+        fails("RESERVED_NAME", catalog("\"toString\":{\"body\":{\"text\":\"a\"}}"))
+        fails("RESERVED_NAME", catalog("\"decode\":{\"body\":{\"text\":\"a\"}}"))
         fails("ARGUMENT_NAME", catalog().replace("\"name\":\"string\"", "\"id\":\"string\""))
     }
     @Test fun placeholdersParsedAsTokensAndRemainLiteral() {
@@ -51,11 +53,24 @@ class CatalogParserTest {
         Files.writeString(directory.resolve("locales/fr.json"), """{"schemaVersion":1,"locale":"fr","messages":{"welcome":{"text":"{missing}"}}}""")
         fails("UNKNOWN_PLACEHOLDER", catalog())
     }
+    @Test fun normalizedDuplicateLocalesAndBodyContracts() {
+        Files.createDirectories(directory.resolve("locales"))
+        Files.writeString(directory.resolve("locales/fr-FR.json"), """{"schemaVersion":1,"locale":"fr-FR","messages":{}}""")
+        Files.writeString(directory.resolve("locales/fr_fr.json"), """{"schemaVersion":1,"locale":"fr_fr","messages":{}}""")
+        fails("DUPLICATE_LOCALE", catalog())
+        Files.delete(directory.resolve("locales/fr_fr.json"))
+        Files.delete(directory.resolve("locales/fr-FR.json"))
+        Files.writeString(directory.resolve("locales/fr.json"), """{"schemaVersion":1,"locale":"fr","messages":{"items":{"text":"{quantity}"}}}""")
+        val plural = """"items":{"arguments":{"quantity":"int"},"body":{"plural":"quantity","cases":{"one":"{quantity}","other":"{quantity}"}}}"""
+        fails("BODY_CONTRACT", catalog(plural))
+    }
     @Test fun grammaticalCategoriesAndSelectorContracts() {
         val plural = """"items":{"arguments":{"quantity":"int"},"body":{"plural":"quantity","cases":{"one":"{quantity} item","other":"{quantity} items"}}}"""
         assertIs<Body.Plural>(parse(catalog(plural)).source.messages.getValue("items").body)
         fails("PLURAL_CATEGORIES", catalog(plural, "fr")) // French many is required even for uncommon counts.
         fails("PLURAL_CATEGORIES", catalog(plural.replace("\"one\":", "\"zero\":")))
+        fails("PLURAL_CATEGORIES", catalog(plural.replace("\"one\":", "\"=0\":")))
+        fails("TYPE", catalog(plural.replace("\"one\":\"{quantity} item\"", "\"one\":{\"text\":\"nested\"}")))
         fails("PLURAL_SELECTOR", catalog(plural.replace("\"quantity\":\"int\"", "\"quantity\":\"string\"")))
         fails("RESERVED_COUNT", catalog(plural.replace("\"quantity\":\"int\"", "\"quantity\":\"int\",\"count\":\"int\"")))
     }
@@ -68,6 +83,8 @@ class CatalogParserTest {
         Files.writeString(output.resolve("stale.txt"), "obsolete")
         Compiler.generate(parsed, options, output)
         assertFalse(Files.exists(output.resolve("stale.txt")))
+        assertEquals(first, Files.readString(output.resolve("kotlin/example/localization/Messages.kt")))
+        assertEquals("KOTLIN_PACKAGE", assertFailsWith<CatalogException> { Compiler.generate(parsed, options.copy(kotlinPackage = "example.class"), output) }.code)
         assertEquals(first, Files.readString(output.resolve("kotlin/example/localization/Messages.kt")))
         assertFalse(first.contains(directory.toString()))
         val smaller = parse(catalog("\"goodbye\":{\"body\":{\"text\":\"Bye\"}}"))

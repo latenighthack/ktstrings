@@ -112,7 +112,7 @@ class CatalogParser {
             val generated = mutableMapOf<String, String>()
             for (id in ids) {
                 val name = convert(id)
-                if (Names.camel(id) in reserved || (Names.pascal(id) + "Message") in generatedTypeNames) fail("RESERVED_NAME", "Message '$id' generates reserved identifier '$name' for $platform")
+                if (Names.camel(id) in reserved || Names.camel(id) in inheritedFactoryNames || (Names.pascal(id) + "Message") in generatedTypeNames) fail("RESERVED_NAME", "Message '$id' generates reserved identifier '$name' for $platform")
                 val previous = generated.put(name, id)
                 if (previous != null) fail("NAME_COLLISION", "'$previous' and '$id' generate '$name' for $platform")
             }
@@ -134,6 +134,7 @@ class CatalogParser {
     private fun fail(code: String, message: String): Nothing = throw CatalogException(code, message)
     companion object {
         private val languages = ULocale.getAvailableLocales().map { it.language }.toSet()
+        private val inheritedFactoryNames = setOf("decode", "toString", "hashCode", "equals", "getClass", "wait", "notify", "notifyAll", "clone", "finalize")
         private val generatedTypeNames = setOf("Messages", "CatalogMessage", "CatalogDecoder", "UiText", "LocalMessage", "LiteralText", "ArgumentValue", "ServerMessage", "ServerText")
         private val reserved = setOf("__proto__", "prototype", "constructor", "class", "object", "interface", "fun", "val", "var", "when", "is", "in", "as", "this", "super", "null", "true", "false", "return", "throw", "try", "catch", "finally", "break", "continue", "for", "while", "do", "if", "else", "new", "delete", "typeof", "void", "switch", "case", "default", "function", "let", "const", "export", "import", "extends", "implements", "package", "private", "public", "protected", "internal", "static", "enum", "await", "yield", "async", "repeat", "deinit", "init", "protocol", "struct", "extension", "associatedtype", "typealias", "nil", "self", "Self", "get", "set")
     }

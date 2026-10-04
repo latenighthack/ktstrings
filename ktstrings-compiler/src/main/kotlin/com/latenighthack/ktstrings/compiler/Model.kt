@@ -35,6 +35,10 @@ interface CatalogEmitter {
 }
 class CatalogException(val code: String, message: String) : IllegalArgumentException("$code: $message")
 object Names {
+    private val kotlinKeywords = setOf("as", "break", "class", "continue", "do", "else", "false", "for", "fun", "if", "in", "interface", "is", "null", "object", "package", "return", "super", "this", "throw", "true", "try", "typealias", "typeof", "val", "var", "when", "while")
+    fun validateKotlinPackage(value: String) {
+        if (!Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*").matches(value) || value.split('.').any { it in kotlinKeywords }) throw CatalogException("KOTLIN_PACKAGE", "Invalid Kotlin package '$value'")
+    }
     fun pascal(id: String): String = id.split('.', '_').joinToString("") { it.replaceFirstChar(Char::uppercaseChar) }
     fun camel(id: String): String = pascal(id).replaceFirstChar(Char::lowercaseChar)
     fun resource(namespace: String, id: String): String = "ktstrings_${namespace}_${id.replace('.', '_').lowercase()}"
