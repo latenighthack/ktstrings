@@ -1,0 +1,1 @@
+{"schemaVersion":1,"locale":"fr","messages":{"welcome":{"text":"Bienvenue, {name}"},"items.count":{"plural":"count","cases":{"one":"{count} élément","many":"{count} éléments","other":"{count} éléments"}}}}
