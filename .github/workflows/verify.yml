@@ -1,0 +1,79 @@
+name: Verify ktstrings
+on:
+  push:
+  pull_request:
+  workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+permissions:
+  contents: read
+jobs:
+  native-and-publication:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - run: brew install xcodegen
+      - run: xcodebuild -version
+      - run: ./gradlew :ktstrings:jvmTest :ktstrings-compiler:test :ktstrings-gradle-plugin:test --max-workers=2
+      - name: Qualify static and dynamic direct Xcode distribution
+        run: |
+          for kind in static dynamic; do
+            staticFramework=false
+            if [ "$kind" = static ]; then staticFramework=true; fi
+            ./gradlew -p integration/apple assembleKtstringsReleaseXCFramework -PstaticFramework="$staticFramework" --max-workers=2
+            python3 scripts/verify-apple-distribution.py integration/apple/build/outputs/ktstrings/apple/release/Shared.xcframework --kind "$kind"
+          done
+      - name: Qualify universal framework slices
+        run: ./gradlew -p integration/apple assembleKtstringsDebugXCFramework -PfatFramework=true --max-workers=2
+      - name: Verify isolated published consumers at two versions
+        run: python3 scripts/verify-published-consumer.py --all-platforms
+      - name: Audit full candidate publication contents
+        run: |
+          python3 scripts/verify-release-metadata.py --version 0.1.0
+          python3 scripts/verify-release-metadata.py --version 0.1.1-candidate-check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-and-publication-evidence
+          path: |
+            build/apple-distribution-proof/*/*.log
+            build/apple-distribution-proof/*/Proof.xcarchive
+            build/published-consumers/*/build/outputs/ktstrings
+            **/build/test-results
+  android-release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          script: python3 scripts/verify-android.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-release-evidence
+          path: integration/android/**/build/outputs

@@ -17,6 +17,8 @@ parser.add_argument("--public-key", type=pathlib.Path)
 parser.add_argument("--check-tag", action="store_true")
 args = parser.parse_args()
 if args.check_tag:
+    properties = dict(line.split("=", 1) for line in (ROOT / "gradle.properties").read_text().splitlines() if "=" in line and not line.startswith("#"))
+    assert properties["VERSION_NAME"] == args.version, "Requested release does not match authoritative VERSION_NAME"
     tag = subprocess.check_output(["git", "describe", "--tags", "--exact-match", "HEAD"], cwd=ROOT, text=True).strip()
     assert tag == "v" + args.version, f"Tag {tag} does not match release {args.version}"
 assert "SNAPSHOT" not in args.version and args.version != "unspecified"

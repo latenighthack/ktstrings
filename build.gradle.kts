@@ -11,7 +11,7 @@ allprojects {
 }
 subprojects {
     // Central accepts documentation archives; include usable project documentation on every target.
-    tasks.withType<Jar>().matching { it.name.contains("javadoc", ignoreCase = true) }.configureEach {
+    tasks.withType<org.gradle.jvm.tasks.Jar>().matching { it.name.contains("javadoc", ignoreCase = true) }.configureEach {
         from(rootProject.file("README.md"))
         from(rootProject.file("docs")) { into("docs") }
     }
