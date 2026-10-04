@@ -13,14 +13,13 @@ internal fun configureApple(project: Project, extension: KtstringsExtension, gen
     project.pluginManager.withPlugin("org.jetbrains.kotlin.multiplatform") {
         project.afterEvaluate {
             if (!extension.apple.enabled.get()) return@afterEvaluate
-            if (!System.getProperty("os.name").startsWith("Mac")) throw GradleException("ktstrings Apple packaging requires macOS with Xcode")
+            requireAppleHost(System.getProperty("os.name"))
             val kotlin = project.extensions.getByType(KotlinMultiplatformExtension::class.java)
             val targets = kotlin.targets.withType(KotlinNativeTarget::class.java).filter { it.konanTarget.family.isAppleFamily }
             val allFrameworks = targets.flatMap { it.binaries.withType(Framework::class.java).toList() }
             val names = allFrameworks.map { it.baseName }.distinct()
             if (!extension.apple.frameworkName.isPresent) {
-                if (names.size != 1) throw GradleException("ktstrings Apple framework is ambiguous: $names; set apple.frameworkName")
-                extension.apple.frameworkName.set(names.single())
+                extension.apple.frameworkName.set(inferAppleFrameworkName(names))
             }
             val frameworkName = extension.apple.frameworkName.get()
             val frameworks = allFrameworks.filter { it.baseName == frameworkName }
@@ -33,6 +32,7 @@ internal fun configureApple(project: Project, extension: KtstringsExtension, gen
                     task.generatedApple.set(generatedApple)
                     task.sdk.set(platform.first)
                     task.targetTriple.set(platform.second)
+                    task.toolchainVersion.set(project.providers.exec { it.commandLine("xcodebuild", "-version") }.standardOutput.asText)
                     task.outputDirectory.set(project.layout.buildDirectory.dir("generated/ktstrings/native/${target.name}"))
                 }
                 val compilation = target.compilations.getByName("main")
@@ -82,6 +82,12 @@ internal fun configureApple(project: Project, extension: KtstringsExtension, gen
             }
         }
     }
+}
+
+internal fun inferAppleFrameworkName(names: List<String>): String {
+    val distinct = names.distinct()
+    if (distinct.size != 1) throw GradleException("ktstrings Apple framework is ambiguous: $distinct; set apple.frameworkName")
+    return distinct.single()
 }
 
 private fun applePlatform(target: KotlinNativeTarget): Pair<String, String> = when (target.konanTarget.name) {

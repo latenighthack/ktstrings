@@ -8,6 +8,10 @@ kotlin {
     iosArm64 { binaries.framework { baseName = "Shared"; isStatic = staticFramework } }
     iosSimulatorArm64 { binaries.framework { baseName = "Shared"; isStatic = staticFramework } }
     macosArm64 { binaries.framework { baseName = "Shared"; isStatic = staticFramework } }
+    if (providers.gradleProperty("fatFramework").map(String::toBoolean).getOrElse(false)) {
+        iosX64 { binaries.framework { baseName = "Shared"; isStatic = staticFramework } }
+        macosX64 { binaries.framework { baseName = "Shared"; isStatic = staticFramework } }
+    }
 }
 ktstrings {
     kotlinPackage.set("com.example.appleproof")
