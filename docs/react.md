@@ -5,16 +5,31 @@ Enable `ktstrings.react`, set `packageName` and `packageVersion`, and run `colle
 ```tsx
 import { messages, registerKtstrings } from '@example/localization';
 import { useKtstrings } from '@example/localization/react';
+import { createInstance } from 'i18next';
+import { I18nextProvider } from 'react-i18next';
+import { createRoot } from 'react-dom/client';
 
-registerKtstrings(applicationI18next);
 const heading = messages.welcome({ name: 'Ada' });
 function Header() {
   const { text } = useKtstrings();
   return <h1>{text(heading)}</h1>;
 }
+
+async function mount(element: HTMLElement) {
+  const applicationI18next = createInstance();
+  registerKtstrings(applicationI18next);
+  await applicationI18next.init({ lng: 'en', fallbackLng: 'en' });
+  createRoot(element).render(
+    <I18nextProvider i18n={applicationI18next}><Header /></I18nextProvider>
+  );
+  // Re-renders Header while retaining the same heading value.
+  await applicationI18next.changeLanguage('fr');
+}
 ```
 
 Keep your existing i18next instance and `I18nextProvider`. Registration adds bundled resources; it does not initialize an instance or mutate a global singleton. The package root can be imported without React. The hook uses react-i18next subscriptions for language changes. `resolveText(instance, value, requestedLocale?)` works independently for servers, tests and other presentation code.
+
+Use `useKtstrings('fr-CA')` when a component needs an explicit locale override. For app-wide switching, call `applicationI18next.changeLanguage(locale)` on the provider's instance. Both paths resolve typed message values at presentation time; catalog translations are already bundled and require no network request.
 
 For SSR, register on a per-request instance, initialize the intended locale before rendering, and reuse that locale during hydration. Do not detect a different browser language during initial hydration.
 
