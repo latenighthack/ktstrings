@@ -39,6 +39,10 @@ jobs:
           done
       - name: Qualify universal framework slices
         run: ./gradlew -p integration/apple assembleKtstringsDebugXCFramework -PfatFramework=true --max-workers=2
+      - name: Qualify published consumer XCFramework archive
+        run: |
+          ./gradlew -p integration/apple publishKotlinMultiplatformPublicationToFixtureRepository -PstaticFramework=false -PpublishDistribution=true --max-workers=2
+          python3 scripts/verify-apple-distribution.py integration/apple/build/published-fixture/com/example/appleproof/ktstrings-apple-consumer/1.0.0/ktstrings-apple-consumer-1.0.0-ktstrings-xcframework.zip --kind dynamic --output build/apple-published-distribution-proof
       - name: Verify isolated published consumers at two versions
         run: python3 scripts/verify-published-consumer.py --all-platforms
       - name: Audit full candidate publication contents

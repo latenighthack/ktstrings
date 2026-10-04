@@ -24,6 +24,14 @@ internal fun configureApple(project: Project, extension: KtstringsExtension, gen
             val frameworkName = extension.apple.frameworkName.get()
             val frameworks = allFrameworks.filter { it.baseName == frameworkName }
             if (frameworks.isEmpty()) throw GradleException("No Kotlin Apple frameworks named $frameworkName")
+            val existingBundleIds = frameworks.mapNotNull { it.binaryOptions["bundleId"] }.distinct()
+            if (existingBundleIds.size > 1) throw GradleException("Selected Kotlin frameworks have conflicting bundle identifiers: $existingBundleIds")
+            existingBundleIds.singleOrNull()?.let { extension.apple.frameworkBundleIdentifier.convention(it) }
+            val bundleId = extension.apple.frameworkBundleIdentifier.get()
+            frameworks.forEach { framework ->
+                if (framework.binaryOptions["bundleId"]?.let { it != bundleId } == true) throw GradleException("ktstrings frameworkBundleIdentifier conflicts with Kotlin framework bundleId")
+                framework.binaryOption("bundleId", bundleId)
+            }
             val generatedApple = generation.flatMap { it.outputDirectory.dir("apple") }
             targets.filter { target -> frameworks.any { it.target == target } }.forEach { target ->
                 val platform = applePlatform(target)
@@ -55,7 +63,16 @@ internal fun configureApple(project: Project, extension: KtstringsExtension, gen
                     task.outputDirectory.set(project.layout.buildDirectory.dir("outputs/ktstrings/apple/${buildType.name.lowercase()}/$frameworkName.xcframework"))
                 }
                 if (buildType.name == "DEBUG") extension.apple.debugXCFramework.set(assemble.flatMap { it.outputDirectory })
-                else extension.apple.releaseXCFramework.set(assemble.flatMap { it.outputDirectory })
+                else {
+                    extension.apple.releaseXCFramework.set(assemble.flatMap { it.outputDirectory })
+                    val archive = project.tasks.register("archiveKtstringsReleaseXCFramework", ArchiveAppleXCFramework::class.java) { task ->
+                        task.group = "ktstrings"
+                        task.description = "Archive the resource-bearing release XCFramework for publication"
+                        task.xcframework.set(assemble.flatMap { it.outputDirectory })
+                        task.archiveFile.set(project.layout.buildDirectory.file("outputs/ktstrings/apple/release/$frameworkName.xcframework.zip"))
+                    }
+                    extension.apple.releaseArchive.set(archive.flatMap { it.archiveFile })
+                }
                 binaries.groupBy { applePlatform(it.target).first }.forEach { (sdk, slices) ->
                     val suffix = sdk.replaceFirstChar(Char::uppercaseChar) + buildName
                     val stage = project.tasks.register("stageKtstrings${suffix}Framework", StageAppleFramework::class.java) { task ->

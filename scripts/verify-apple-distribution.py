@@ -5,8 +5,10 @@ import hashlib
 import json
 import pathlib
 import plistlib
+import shutil
 import subprocess
 import sys
+import tempfile
 
 parser = argparse.ArgumentParser()
 parser.add_argument("xcframework", type=pathlib.Path)
@@ -22,6 +24,14 @@ if args.simulator is None:
 xcframework = args.xcframework.resolve()
 output = args.output.resolve() / args.kind
 output.mkdir(parents=True, exist_ok=True)
+if xcframework.suffix == ".zip":
+    extracted = output / "extracted"
+    shutil.rmtree(extracted, ignore_errors=True)
+    extracted.mkdir()
+    subprocess.run(["ditto", "-x", "-k", str(xcframework), str(extracted)], check=True)
+    candidates = list(extracted.glob("*.xcframework"))
+    assert len(candidates) == 1, "Distribution ZIP must contain exactly one XCFramework"
+    xcframework = candidates[0]
 
 def run(*command, **kwargs):
     return subprocess.run([str(part) for part in command], check=True, **kwargs)
@@ -33,6 +43,9 @@ frameworks = sorted(xcframework.glob("*/Shared.framework"))
 assert frameworks, "XCFramework has no framework slices"
 expected = None
 for framework in frameworks:
+    if (framework / "Versions").exists():
+        assert (framework / "Versions/Current").is_symlink(), "Versioned framework symlink was lost during archiving"
+        assert (framework / "Resources").is_symlink(), "macOS Resources symlink was lost during archiving"
     resources = resource_root(framework)
     with (resources / "Info.plist").open("rb") as stream:
         info = plistlib.load(stream)
@@ -117,7 +130,16 @@ run("codesign", "--force", "--sign", "-", app)
 run("codesign", "--verify", "--deep", "--strict", app)
 run("xcrun", "simctl", "bootstatus", args.simulator, "-b")
 run("xcrun", "simctl", "install", args.simulator, app)
-launch = run("xcrun", "simctl", "launch", "--console", args.simulator, "com.example.ktstrings.appleproof", stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+catalog = pathlib.Path(__file__).resolve().parents[1] / "integration/apple/localization"
+with tempfile.TemporaryDirectory(prefix="runtime-without-catalog-", dir=output) as hidden:
+    moved = pathlib.Path(hidden) / "localization"
+    if catalog.is_dir():
+        catalog.rename(moved)
+    try:
+        launch = run("xcrun", "simctl", "launch", "--console", args.simulator, "com.example.ktstrings.appleproof", stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    finally:
+        if moved.is_dir():
+            moved.rename(catalog)
 print(launch.stdout.decode())
 assert b"KTSTRINGS_APPLE_SIMULATOR_PASS" in launch.stdout, "Simulator did not prove native lookup"
 archive = output / "Proof.xcarchive"

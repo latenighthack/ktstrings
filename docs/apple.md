@@ -4,6 +4,8 @@ Enable `ktstrings.apple.enabled` on an existing Kotlin Multiplatform framework p
 
 Distribute `assembleKtstringsDebugXCFramework` or `assembleKtstringsReleaseXCFramework` outputs under `build/outputs/ktstrings/apple`. Raw Kotlin framework outputs are intermediates and lack packaged application catalog resources. Each slice contains the catalog's namespaced Foundation tables and development-region/localization metadata.
 
+`apple.debugXCFramework`, `apple.releaseXCFramework`, and `apple.releaseArchive` expose task-backed packaged outputs. `archiveKtstringsReleaseXCFramework` creates a publication ZIP while preserving macOS framework symlinks. When a consumer already applies `maven-publish`, set `apple.publicationName` to an existing Maven publication name; publishing that publication builds and attaches the enriched release archive with classifier `ktstrings-xcframework`. No manual task dependency or raw framework-directory artifact is required.
+
 Apple documents resource-bearing static frameworks for Xcode 15 or later. The acceptance fixture has been run on Xcode 26.6 with iOS 26.5; other Xcode versions require the same qualification before claiming support. In Xcode, add the packaged XCFramework to Frameworks, Libraries, and Embedded Content and select **Embed & Sign**, for static as well as dynamic frameworks. Xcode removes the static main archive while preserving its resource-bearing framework. Xcode 26 may inject an empty codeless-framework dylib stub; the Kotlin implementation remains linked into the application. No separate resource-copy phase or localization package is required. Sign distribution artifacts after packaging; Xcode signs their final embedded form.
 
 Swift usage follows the Objective-C names exported by Kotlin:

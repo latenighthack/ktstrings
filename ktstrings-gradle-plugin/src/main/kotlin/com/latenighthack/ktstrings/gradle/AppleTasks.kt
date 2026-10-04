@@ -4,6 +4,7 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.*
 import org.gradle.process.ExecOperations
@@ -56,7 +57,10 @@ abstract class StageAppleFramework @Inject constructor(private val exec: ExecOpe
         val properties = metadata(generated)
         val info = File(resources, "Info.plist")
         if (!info.isFile) throw GradleException("Kotlin framework has no Info.plist: $info")
-        exec.exec { spec -> spec.commandLine("plutil", "-replace", "CFBundleIdentifier", "-string", properties.getProperty("bundleIdentifier"), info) }
+        val identity = java.io.ByteArrayOutputStream().also { bytes ->
+            exec.exec { spec -> spec.commandLine("plutil", "-extract", "CFBundleIdentifier", "raw", "-o", "-", info); spec.standardOutput = bytes }
+        }.toString().trim()
+        if (identity != properties.getProperty("bundleIdentifier")) throw GradleException("Kotlin framework bundle identifier '$identity' does not match ktstrings resources")
         exec.exec { spec -> spec.commandLine("plutil", "-replace", "CFBundleDevelopmentRegion", "-string", properties.getProperty("sourceLocale"), info) }
         val locales = properties.getProperty("locales").split(',').joinToString(",", "[", "]") { "\"$it\"" }
         exec.exec { spec -> spec.commandLine("plutil", "-replace", "CFBundleLocalizations", "-json", locales, info) }
@@ -81,6 +85,21 @@ abstract class AssembleAppleXCFramework @Inject constructor(private val exec: Ex
         arguments.addAll(listOf("-output", output))
         exec.exec { spec -> spec.commandLine(arguments) }
         verifyAppleFrameworks(output)
+    }
+}
+
+/** ditto retains versioned macOS framework symlinks in the distribution ZIP. */
+abstract class ArchiveAppleXCFramework @Inject constructor(private val exec: ExecOperations) : DefaultTask() {
+    @get:InputDirectory @get:PathSensitive(PathSensitivity.RELATIVE) abstract val xcframework: DirectoryProperty
+    @get:OutputFile abstract val archiveFile: RegularFileProperty
+    @TaskAction fun archive() {
+        requireMac()
+        val source = xcframework.get().asFile
+        verifyAppleFrameworks(source)
+        val output = archiveFile.get().asFile
+        output.parentFile.mkdirs()
+        output.delete()
+        exec.exec { spec -> spec.commandLine("ditto", "-c", "-k", "--keepParent", "--norsrc", "--noextattr", "--noacl", source, output) }
     }
 }
 
