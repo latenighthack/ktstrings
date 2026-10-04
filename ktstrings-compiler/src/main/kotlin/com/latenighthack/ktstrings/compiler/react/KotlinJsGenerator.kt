@@ -35,6 +35,7 @@ fun encodeKtstringsText(value: UiText): dynamic {
                 arguments[name] = when (argument) {
                     is ArgumentValue.StringValue -> argument.value
                     is ArgumentValue.IntValue -> argument.value
+                    else -> error("Unsupported ktstrings argument value")
                 }
             }
             result.arguments = arguments

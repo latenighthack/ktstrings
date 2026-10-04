@@ -15,5 +15,14 @@ val generateReleaseCoordinates by tasks.registering {
     }
 }
 kotlin.sourceSets.main { kotlin.srcDir(generateReleaseCoordinates) }
-dependencies { testImplementation(gradleTestKit()); testImplementation(kotlin("test")); testImplementation("org.junit.jupiter:junit-jupiter:5.13.4") }
-tasks.test { useJUnitPlatform() }
+dependencies { compileOnly("org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.10"); compileOnly("com.android.tools.build:gradle:8.13.2"); testImplementation(gradleTestKit()); testImplementation(kotlin("test")); testImplementation("org.junit.jupiter:junit-jupiter:5.13.4") }
+tasks.test {
+    useJUnitPlatform()
+    dependsOn(":ktstrings-compiler:installDist", ":ktstrings:jvmJar")
+    systemProperty("ktstrings.runtime.jar", project(":ktstrings").layout.buildDirectory.file("libs/ktstrings-jvm-${project.version}.jar").get().asFile.absolutePath)
+    systemProperty("ktstrings.compiler.lib", project(":ktstrings-compiler").layout.buildDirectory.dir("install/ktstrings-compiler/lib").get().asFile.absolutePath)
+}
+
+val integrationToolchain by configurations.creating
+dependencies { integrationToolchain("org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.10"); integrationToolchain("com.android.tools.build:gradle:8.13.2") }
+tasks.named<org.gradle.plugin.devel.tasks.PluginUnderTestMetadata>("pluginUnderTestMetadata") { pluginClasspath.from(integrationToolchain) }
