@@ -3,8 +3,51 @@
   "namespace": "app",
   "sourceLocale": "en",
   "messages": {
-    "welcome": {"description": "Greeting on the home screen", "arguments": {"name": "string"}, "body": {"text": "Welcome, {name}"}},
-    "items.count": {"description": "Item count", "arguments": {"count": "int"}, "body": {"plural": "count", "cases": {"one": "{count} item", "other": "{count} items"}}},
-    "history": {"body": {"text": "History stays literal: 100% {{name}} $t(no) 🦉"}}
+    "welcome": {
+      "description": "Greeting on the home screen",
+      "arguments": {
+        "name": "string"
+      },
+      "body": {
+        "text": "Welcome, {name}"
+      }
+    },
+    "items.count": {
+      "description": "Item count",
+      "arguments": {
+        "count": "int"
+      },
+      "body": {
+        "plural": "count",
+        "cases": {
+          "one": "{count} item",
+          "other": "{count} items"
+        }
+      }
+    },
+    "history": {
+      "body": {
+        "text": "History stays literal: 100% {{name}} $t(no) 🦉"
+      }
+    },
+    "syntax": {
+      "arguments": {
+        "name": "string",
+        "value": "int"
+      },
+      "body": {
+        "text": "  \"quotes\" 'apostrophe' & <plain> \\ newline\n{name} | {value} | 100% | {{name}} | $t(no) | 🦉  "
+      }
+    },
+    "argument.order": {
+      "arguments": {
+        "first": "string",
+        "amount": "int",
+        "second": "string"
+      },
+      "body": {
+        "text": "{second} | {amount} | {first} | {second} | 100%"
+      }
+    }
   }
 }

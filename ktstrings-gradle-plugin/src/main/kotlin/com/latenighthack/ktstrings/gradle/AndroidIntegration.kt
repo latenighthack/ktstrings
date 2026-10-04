@@ -1,0 +1,70 @@
+package com.latenighthack.ktstrings.gradle
+
+import com.android.build.api.variant.ApplicationAndroidComponentsExtension
+import com.android.build.api.variant.LibraryAndroidComponentsExtension
+import com.android.build.api.variant.Variant
+import org.gradle.api.Project
+import org.gradle.api.DefaultTask
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.tasks.*
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import org.gradle.api.tasks.TaskProvider
+import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+
+internal fun configureAndroid(project: Project, extension: KtstringsExtension, generation: TaskProvider<GenerateKtstringsTask>) {
+    generation.configure { it.androidEnabled.set(true) }
+    fun variant(variant: Variant) {
+        val resources = project.tasks.register("stageKtstrings${variant.name.replaceFirstChar(Char::uppercaseChar)}Resources", StageAndroidResources::class.java) {
+            it.sourceDirectory.set(generation.flatMap { task -> task.outputDirectory.dir("android/resources") })
+            it.outputDirectory.convention(project.layout.buildDirectory.dir("generated/ktstrings/android/${variant.name}/resources"))
+        }
+        variant.sources.res?.addGeneratedSourceDirectory(resources) { it.outputDirectory }
+    }
+    project.extensions.findByType(LibraryAndroidComponentsExtension::class.java)?.let { components ->
+        components.finalizeDsl { dsl -> generation.configure { it.androidPackage.set(dsl.namespace) } }
+        components.onVariants(components.selector().all(), ::variant)
+    }
+    project.extensions.findByType(ApplicationAndroidComponentsExtension::class.java)?.let { components ->
+        components.finalizeDsl { dsl -> generation.configure { it.androidPackage.set(dsl.namespace) } }
+        components.onVariants(components.selector().all(), ::variant)
+    }
+    project.pluginManager.withPlugin("org.jetbrains.kotlin.multiplatform") {
+        val kotlin = project.extensions.getByType(KotlinMultiplatformExtension::class.java)
+        kotlin.sourceSets.matching { it.name == "androidMain" }.configureEach { it.kotlin.srcDir(generation.flatMap { task -> task.outputDirectory.dir("android/kotlin") }) }
+        project.afterEvaluate {
+            if (extension.android.compose.get()) {
+                kotlin.sourceSets.matching { it.name == "androidMain" }.configureEach { it.kotlin.srcDir(generation.flatMap { task -> task.outputDirectory.dir("android/compose") }) }
+                project.dependencies.add("androidMainImplementation", "${ReleaseCoordinates.GROUP}:ktstrings-compose:${ReleaseCoordinates.VERSION}")
+            }
+        }
+    }
+    project.pluginManager.withPlugin("org.jetbrains.kotlin.android") {
+        val kotlin = project.extensions.getByType(org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension::class.java)
+        kotlin.sourceSets.named("main").configure { it.kotlin.srcDir(generation.flatMap { task -> task.outputDirectory.dir("kotlin") }); it.kotlin.srcDir(generation.flatMap { task -> task.outputDirectory.dir("android/kotlin") }) }
+        project.dependencies.add("api", "${ReleaseCoordinates.GROUP}:ktstrings:${ReleaseCoordinates.VERSION}")
+        project.afterEvaluate {
+            if (extension.android.compose.get()) {
+                project.extensions.findByType(com.android.build.api.dsl.LibraryExtension::class.java)?.sourceSets?.getByName("main")?.java?.srcDir(generation.flatMap { it.outputDirectory.dir("android/compose") })
+                project.extensions.findByType(com.android.build.api.dsl.ApplicationExtension::class.java)?.sourceSets?.getByName("main")?.java?.srcDir(generation.flatMap { it.outputDirectory.dir("android/compose") })
+                project.dependencies.add("implementation", "${ReleaseCoordinates.GROUP}:ktstrings-compose:${ReleaseCoordinates.VERSION}")
+            }
+        }
+    }
+}
+
+@CacheableTask
+abstract class StageAndroidResources : DefaultTask() {
+    @get:InputDirectory @get:PathSensitive(PathSensitivity.RELATIVE) abstract val sourceDirectory: DirectoryProperty
+    @get:OutputDirectory abstract val outputDirectory: DirectoryProperty
+    @TaskAction fun stage() {
+        val source = sourceDirectory.get().asFile.toPath()
+        val output = outputDirectory.get().asFile.toPath()
+        if (Files.exists(output)) Files.walk(output).use { paths -> paths.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
+        Files.walk(source).use { paths -> paths.forEach { path ->
+            val target = output.resolve(source.relativize(path))
+            if (Files.isDirectory(path)) Files.createDirectories(target)
+            else { Files.createDirectories(target.parent); Files.copy(path, target, StandardCopyOption.REPLACE_EXISTING) }
+        } }
+    }
+}

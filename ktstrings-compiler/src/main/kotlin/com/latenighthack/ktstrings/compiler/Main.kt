@@ -13,7 +13,7 @@ object Compiler {
         Files.createDirectories(absolute.parent)
         val staging = Files.createTempDirectory(absolute.parent, ".ktstrings-")
         try {
-            val emitters = listOf(KotlinEmitter(), AppleEmitter(), ReactEmitter())
+            val emitters = listOf(KotlinEmitter(), AndroidEmitter(), AppleEmitter(), ReactEmitter())
             for (emitter in emitters) if (emitter.name in options.platforms) emitter.emit(catalog, options, staging)
             if ("react" in options.platforms && options.kotlinPackage != null) KotlinJsGenerator().emit(catalog, options, staging)
             val metadata = linkedMapOf<String, Any>(
