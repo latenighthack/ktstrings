@@ -1,0 +1,1 @@
+Published-candidate fixtures resolve the plugin marker, compiler, and runtime from an isolated file repository, without composite substitution. Both the normal and changed-version candidates must pass before release.

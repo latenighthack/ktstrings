@@ -1,0 +1,5 @@
+ktstrings
+Copyright 2026 Mike Roberts
+
+The catalog compiler uses ICU4J and Unicode CLDR locale data, distributed under
+Unicode License V3. See https://www.unicode.org/license.txt.
