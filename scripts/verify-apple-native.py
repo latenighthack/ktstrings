@@ -38,6 +38,12 @@ int main(int argc, char **argv) { @autoreleasepool {
     check(ktstrings_appleproof_reordered(bundle, @"en", @"Ada", 1), @"Ada: 1 item (Ada)");
     check(ktstrings_appleproof_reordered(bundle, @"en", @"Ada", 3), @"Ada: 3 items (Ada)");
     check(ktstrings_appleproof_literal(bundle, @"en"), @"100% {braces} \\ \"quote\"\n$({name})");
+    int quantities[] = {0, 1, 2, 3, 11, 100};
+    NSArray *suffixes = @[@"صفر", @"واحد", @"اثنان", @"قليل", @"كثير", @"آخر"];
+    for (int index = 0; index < 6; index++) {
+        NSString *value = ktstrings_appleproof_items_count(bundle, @"ar", quantities[index]);
+        if (![value hasSuffix:suffixes[index]]) { NSLog(@"Arabic category mismatch %@", value); return 4; }
+    }
     for (int value = 0; value < 200; value++) {
         NSString *ar = ktstrings_appleproof_items_count(bundle, @"ar", value);
         if (!ar || [ar isEqualToString:@"items.count"]) return 2;
