@@ -72,6 +72,11 @@ ktstrings {{
     command=[ROOT/'gradlew','-p',fixture,*tasks,'--configuration-cache','--max-workers=4']
     run(command)
     run(command)
+    for configuration, artifact in [('ktstringsCompiler','ktstrings-compiler'), ('jvmCompileClasspath','ktstrings')]:
+        report=subprocess.check_output([str(ROOT/'gradlew'),'-p',str(fixture),'dependencies','--configuration',configuration,'--console=plain'],cwd=ROOT,text=True)
+        expected=f'com.latenighthack.ktstrings:{artifact}:{version}'
+        assert expected in report, f'Published plugin resolved stale coordinates: expected {expected} in {configuration}\n{report}'
+
     run(['node', ROOT/'integration/react/verify.mjs',fixture/'build/outputs/ktstrings/react'])
     package=json.loads((fixture/'build/outputs/ktstrings/react/package.json').read_text())
     assert package['version']=='1.2.3'

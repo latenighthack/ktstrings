@@ -24,5 +24,5 @@ tasks.test {
 }
 
 val integrationToolchain by configurations.creating
-dependencies { integrationToolchain("org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.10"); integrationToolchain("com.android.tools.build:gradle:8.13.2") }
+dependencies { integrationToolchain("org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.10"); integrationToolchain("com.android.tools.build:gradle:8.13.2"); integrationToolchain("com.google.devtools.ksp:symbol-processing-gradle-plugin:2.3.10") }
 tasks.named<org.gradle.plugin.devel.tasks.PluginUnderTestMetadata>("pluginUnderTestMetadata") { pluginClasspath.from(integrationToolchain) }

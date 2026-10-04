@@ -27,3 +27,5 @@ node integration/react/verify.mjs /absolute/path/to/generated/react
 ```
 
 The script packs the npm tarball, installs it into an isolated temporary consumer, compiles positive and negative TypeScript cases, verifies native i18next fallback and literal handling, runs SSR/hydration and language changes, and builds a production esbuild bundle. The acceptance package must be generated from `integration/react/localization`.
+
+The plugin exposes `ktstrings.react.packageDirectory` and `archiveFile` as task-backed output providers. `archiveKtstringsReact` creates a reproducible ZIP of the complete package without requiring npm tooling. To attach it to a Maven publication, apply `maven-publish` and set `react.publicationName` to the publication name. The plugin creates that publication when absent, or adds a `ktstrings-react` ZIP classifier to an existing publication. Publishing automatically generates and collects the package; ordinary builds do not publish it. npm publication remains an explicit consumer operation.

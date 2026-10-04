@@ -14,6 +14,7 @@ import javax.inject.Inject
 @CacheableTask
 abstract class GenerateKtstringsTask @Inject constructor(private val exec: ExecOperations) : DefaultTask() {
     @get:InputDirectory @get:PathSensitive(PathSensitivity.RELATIVE) abstract val catalogDirectory: DirectoryProperty
+    @get:Input abstract val compilerVersion: Property<String>
     @get:Classpath abstract val compilerClasspath: ConfigurableFileCollection
     @get:Input @get:Optional abstract val kotlinPackage: Property<String>
     @get:Input @get:Optional abstract val androidPackage: Property<String>
@@ -51,6 +52,7 @@ abstract class GenerateKtstringsTask @Inject constructor(private val exec: ExecO
 @CacheableTask
 abstract class ValidateKtstringsTask @Inject constructor(private val exec: ExecOperations) : DefaultTask() {
     @get:InputDirectory @get:PathSensitive(PathSensitivity.RELATIVE) abstract val catalogDirectory: DirectoryProperty
+    @get:Input abstract val compilerVersion: Property<String>
     @get:Classpath abstract val compilerClasspath: ConfigurableFileCollection
     @get:OutputFile abstract val validationMarker: RegularFileProperty
     @TaskAction fun validate() {
@@ -62,6 +64,7 @@ abstract class ValidateKtstringsTask @Inject constructor(private val exec: ExecO
 @CacheableTask
 abstract class CoverageKtstringsTask @Inject constructor(private val exec: ExecOperations) : DefaultTask() {
     @get:InputDirectory @get:PathSensitive(PathSensitivity.RELATIVE) abstract val catalogDirectory: DirectoryProperty
+    @get:Input abstract val compilerVersion: Property<String>
     @get:Classpath abstract val compilerClasspath: ConfigurableFileCollection
     @get:OutputFile abstract val reportFile: RegularFileProperty
     @TaskAction fun report() {
@@ -74,6 +77,8 @@ abstract class CoverageKtstringsTask @Inject constructor(private val exec: ExecO
 
 abstract class VerifyKtstringsPackaging : DefaultTask() {
     @get:InputDirectory @get:Optional @get:PathSensitive(PathSensitivity.RELATIVE) abstract val reactPackage: DirectoryProperty
+    @get:InputFile @get:Optional @get:PathSensitive(PathSensitivity.RELATIVE) abstract val androidCatalogMetadata: RegularFileProperty
+    @get:InputFiles @get:PathSensitive(PathSensitivity.RELATIVE) abstract val androidPackages: ConfigurableFileCollection
     @get:InputFiles @get:PathSensitive(PathSensitivity.RELATIVE) abstract val applePackages: ConfigurableFileCollection
     @TaskAction fun verify() {
         if(reactPackage.isPresent) {
@@ -81,6 +86,7 @@ abstract class VerifyKtstringsPackaging : DefaultTask() {
             listOf("package.json","index.js","index.d.ts","react.js","react.d.ts","metadata/catalog.json").forEach { if(!root.resolve(it).isFile) throw GradleException("Incomplete ktstrings React distribution: $it") }
             if(root.resolve("locales").listFiles()?.none { it.extension == "json" } != false) throw GradleException("React package has no locale JSON")
         }
+        androidPackages.files.forEach { verifyAndroidArtifact(it,androidCatalogMetadata.get().asFile) }
         applePackages.files.forEach(::verifyAppleFrameworks)
     }
 }
