@@ -53,6 +53,8 @@ class KtstringsPlugin : Plugin<Project> {
             extensions.getByType(KotlinJvmProjectExtension::class.java).sourceSets.named("main").configure { it.kotlin.srcDir(generation.flatMap { it.outputDirectory.dir("kotlin") }) }
             dependencies.add("api","${ReleaseCoordinates.GROUP}:ktstrings:${ReleaseCoordinates.VERSION}")
         }
+        pluginManager.withPlugin("com.android.library") { configureAndroid(project,extension,generation) }
+        pluginManager.withPlugin("com.android.application") { configureAndroid(project,extension,generation) }
         pluginManager.withPlugin("com.google.devtools.ksp") {
             tasks.matching { it.name.startsWith("ksp") }.configureEach { it.dependsOn(generation) }
         }

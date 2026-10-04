@@ -10,6 +10,8 @@ abstract class AppleOptions {
     abstract val enabled: Property<Boolean>
     abstract val frameworkName: Property<String>
     abstract val frameworkBundleIdentifier: Property<String>
+    abstract val debugXCFramework: DirectoryProperty
+    abstract val releaseXCFramework: DirectoryProperty
 }
 abstract class ReactOptions {
     abstract val enabled: Property<Boolean>
