@@ -1,0 +1,1 @@
+{"schemaVersion":1,"namespace":"acceptance","sourceLocale":"en","messages":{"welcome":{"arguments":{"name":"string"},"body":{"text":"Welcome, {name}"}},"items.count":{"arguments":{"count":"int"},"body":{"plural":"count","cases":{"one":"{count} item","other":"{count} items"}}},"literal.syntax":{"arguments":{},"body":{"text":"{{{{value}}}} $t(welcome) % \" \\ $"}}}}
